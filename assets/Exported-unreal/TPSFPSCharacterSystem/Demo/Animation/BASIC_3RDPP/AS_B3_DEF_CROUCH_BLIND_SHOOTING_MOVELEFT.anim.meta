@@ -1,0 +1,13 @@
+{
+  "ver": "1.0.11",
+  "importer": "animation-clip",
+  "imported": true,
+  "uuid": "d5a024b0-0d76-48a8-a4c8-94eff7749728",
+  "files": [
+    ".json"
+  ],
+  "subMetas": {},
+  "userData": {
+    "name": "AS_B3_DEF_CROUCH_BLIND_SHOOTING_MOVELEFT"
+  }
+}

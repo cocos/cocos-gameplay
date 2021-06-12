@@ -1,0 +1,82 @@
+{
+  "__type__": "cc.Material",
+  "_name": "",
+  "_objFlags": 0,
+  "_native": "",
+  "_effectAsset": {
+    "__uuid__": "94a43a52-8260-4e9f-99e4-eb45d73be063",
+    "__expectedType__": "cc.EffectAsset"
+  },
+  "_techIdx": 0,
+  "_defines": [
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    }
+  ],
+  "_states": [
+    {},
+    {},
+    {},
+    {}
+  ],
+  "_props": [
+    {
+      "Material_Texture2D_0": {
+        "__uuid__": "7ec179c7-5bea-4ed7-9f09-2ff8c6d3bf99@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      },
+      "Material_Texture2D_1": {
+        "__uuid__": "acbef0a1-c73f-4857-9a1f-c1d325b47496@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      },
+      "Material_Texture2D_2": {
+        "__uuid__": "0f19febf-882e-4d61-97a0-e7cfef28f5e3@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      }
+    },
+    {},
+    {},
+    {}
+  ]
+}

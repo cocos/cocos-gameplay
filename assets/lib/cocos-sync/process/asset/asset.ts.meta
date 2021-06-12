@@ -1,0 +1,14 @@
+{
+  "ver": "4.0.22",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "d733c542-49cb-4cb1-93bb-69ad2170224c",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "importAsPlugin": false,
+    "moduleId": "project:///assets/lib/cocos-sync/asset/asset.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

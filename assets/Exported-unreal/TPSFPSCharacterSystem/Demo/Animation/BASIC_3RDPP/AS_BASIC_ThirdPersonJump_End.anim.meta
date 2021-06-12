@@ -1,0 +1,13 @@
+{
+  "ver": "1.0.11",
+  "importer": "animation-clip",
+  "imported": true,
+  "uuid": "f868e698-e9a2-4a5f-a497-76453803ac56",
+  "files": [
+    ".json"
+  ],
+  "subMetas": {},
+  "userData": {
+    "name": "AS_BASIC_ThirdPersonJump_End"
+  }
+}

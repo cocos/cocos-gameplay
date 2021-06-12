@@ -1,0 +1,1917 @@
+// Copyright (c) 2017-2018 Xiamen Yaji Software Co., Ltd.
+CCEffect %{
+  temporaries:
+    properties: &props
+      ColorTop: { value: [0.9741380214691162, 0.33788496255874634, 0.03446100279688835, 1], target: Material_VectorExpressions_0 }
+      ColorBottom: { value: [0.9137930274009705, 0.864979088306427, 0.7185379266738892, 1], target: Material_VectorExpressions_1 }
+      RoughnessTop: { value: 0.10859700292348862, target: Material_ScalarExpressions_0.x }
+      RoughnessBottom: { value: 0.3115040063858032, target: Material_ScalarExpressions_0.y }
+      Material_Texture2D_0: { value: white }
+      Material_Texture2D_1: { value: white }
+
+  techniques:
+  - name: opaque
+    passes:
+    - vert: pbr-vs
+      frag: pbr-fs
+      properties: *props
+    - &deferred
+      vert: pbr-vs
+      frag: pbr-fs
+      phase: deferred
+      propertyIndex: 0
+      blendState:
+        targets:
+        - blend: false
+        - blend: false
+        - blend: false
+        - blend: false
+      properties: *props
+    - &forward-add
+      vert: pbr-vs
+      frag: pbr-fs
+      phase: forward-add
+      propertyIndex: 0
+      embeddedMacros: { CC_FORWARD_ADD: true }
+      depthStencilState:
+        depthFunc: equal
+        depthTest: true
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: one
+          blendDst: one
+          blendSrcAlpha: zero
+          blendDstAlpha: one
+      properties: *props
+    - &shadow-caster
+      vert: shadow-caster-vs:vert
+      frag: shadow-caster-fs:frag
+      phase: shadow-caster
+      propertyIndex: 0
+      rasterizerState:
+        cullMode: front
+  - name: transparent
+    passes:
+    - vert: pbr-vs
+      frag: pbr-fs
+      depthStencilState: &d1
+        depthTest: true
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      properties: *props
+    - *forward-add
+    - *shadow-caster
+}%
+
+
+        CCProgram shared-ubos %{
+            
+  
+uniform SharedUBOs_Properties {    vec4 Material_VectorExpressions_0;
+    vec4 Material_VectorExpressions_1;
+
+    vec4 Material_ScalarExpressions_0;
+};
+  
+  uniform sampler2D Material_Texture2D_0;
+  uniform sampler2D Material_Texture2D_1;
+
+
+        }%
+        
+
+
+        CCProgram pbr-vs %{
+            
+
+precision highp float;
+
+
+
+
+#include <input-standard>
+#include <cc-global>
+// Copyright (c) 2017-2020 Xiamen Yaji Software Co., Ltd.
+
+#pragma define USE_INSTANCING editor(elevated: true)
+#pragma define USE_BATCHING editor(elevated: true)
+
+#if USE_INSTANCING
+  in vec4 a_matWorld0;
+  in vec4 a_matWorld1;
+  in vec4 a_matWorld2;
+  #if CC_USE_LIGHTMAP
+    in vec4 a_lightingMapUVParam;
+  #endif
+#elif USE_BATCHING
+  in float a_dyn_batch_id;
+
+  #pragma builtin(local)
+  layout(set = 2, binding = 0) uniform CCLocalBatched {
+    highp mat4 cc_matWorlds[10];
+  };
+#else
+  #include <cc-local>
+#endif
+
+#define CCGetWorldMatrix(matWorld)                \
+  #if USE_INSTANCING                              \
+    matWorld = mat4(                              \
+      vec4(a_matWorld0.xyz, 0.0),                 \
+      vec4(a_matWorld1.xyz, 0.0),                 \
+      vec4(a_matWorld2.xyz, 0.0),                 \
+      vec4(a_matWorld0.w, a_matWorld1.w, a_matWorld2.w, 1.0) \
+    );                                            \
+  #elif USE_BATCHING                              \
+    matWorld = cc_matWorlds[int(a_dyn_batch_id)]; \
+  #else                                           \
+    matWorld = cc_matWorld;                       \
+  #endif                                          \
+  #pragma 
+
+#define CCGetWorldMatrixFull(matWorld, matWorldIT) \
+  #if USE_INSTANCING                               \
+    matWorld = mat4(                               \
+      vec4(a_matWorld0.xyz, 0.0),                  \
+      vec4(a_matWorld1.xyz, 0.0),                  \
+      vec4(a_matWorld2.xyz, 0.0),                  \
+      vec4(a_matWorld0.w, a_matWorld1.w, a_matWorld2.w, 1.0) \
+    );                                             \
+    matWorldIT = matWorld;                         \
+  #elif USE_BATCHING                               \
+    matWorld = cc_matWorlds[int(a_dyn_batch_id)];  \
+    matWorldIT = matWorld;                         \
+  #else                                            \
+    matWorld = cc_matWorld;                        \
+    matWorldIT = cc_matWorldIT;                    \
+  #endif                                           \
+  #pragma 
+
+#include <shared-ubos>
+#include <cc-shadow-map-vs>
+
+#if CC_USE_ATTR_COLOR
+in vec4 a_color;
+out vec4 v_color;
+#endif
+
+out vec3 v_position;
+out vec3 v_normal;
+out vec2 v_uv;
+
+out vec3 v_tangent;
+out vec3 v_bitangent;
+
+in vec2 a_texCoord1;
+out vec2 v_uv1;
+
+#define __USE_LIGHTMAP__ (CC_USE_LIGHTMAP && !USE_BATCHING && !CC_FORWARD_ADD)
+
+#if __USE_LIGHTMAP__
+
+
+  #if USE_INSTANCING
+    in vec4 a_lightingMapAdds0;
+    in vec4 a_lightingMapAdds1;
+    in vec4 a_lightingMapScales0;
+    in vec4 a_lightingMapScales1;
+
+    out vec4 v_lightingMapAdds0;
+    out vec4 v_lightingMapAdds1;
+    out vec4 v_lightingMapScales0;
+    out vec4 v_lightingMapScales1;
+
+    void getLightingMapVectors () {
+      v_lightingMapAdds0 = a_lightingMapAdds0;
+      v_lightingMapAdds1 = a_lightingMapAdds1;
+      v_lightingMapScales0 = a_lightingMapScales0;
+      v_lightingMapScales1 = a_lightingMapScales1;
+    }
+  #endif
+
+	#include <lightingmap-vs>
+
+
+
+
+
+#endif 
+
+vec4 GetLightMapColor (vec3 worldNormal) {
+  #if __DEFERED_LIGHTING__
+    // TODO fixed IndirectIrradiance
+    return vec4(vec3(0.), 1.);
+  #else
+    vec4 lightmapColor = vec4(0.);
+
+    #if __USE_LIGHTMAP__
+      vec2 LightmapUV0 = v_luv.xy * vec2( 1., 0.5 );
+      vec2 LightmapUV1 = LightmapUV0 + vec2( 0., 0.5 );
+        lightmapColor = GetLightMapColorLQ(LightmapUV0, LightmapUV1, worldNormal);
+
+    #endif
+
+    return lightmapColor;
+  #endif
+}
+
+float EncodeIndirectIrradiance(float IndirectIrradiance, GlobalView View)
+{
+	float L = IndirectIrradiance;
+// #if USE_PREEXPOSURE
+	L *= View.PreExposure; 
+// #endif
+	const float LogBlackPoint = 0.00390625;	
+	return log2( L + LogBlackPoint ) / 16 + 0.5;
+}
+
+float DecodeIndirectIrradiance(float IndirectIrradiance, GlobalView View)
+{
+// #if USE_PREEXPOSURE
+	const float OneOverPreExposure = 1. / View.PreExposure;
+// #else
+// 	const float OneOverPreExposure = 1.f;
+// #endif
+
+	// LogL -> L
+	float LogL = IndirectIrradiance;
+	const float LogBlackPoint = 0.00390625;	
+	return OneOverPreExposure * (exp2( LogL * 16 - 8 ) - LogBlackPoint);	
+}
+
+
+void main () {
+  StandardVertInput In;
+  CCVertInput(In);
+
+  mat4 matWorld, matWorldIT;
+  CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+  vec4 pos = matWorld * In.position;
+
+  v_position = pos.xyz;
+  v_normal = normalize((matWorldIT * vec4(In.normal, 0.0)).xyz);
+
+  v_tangent = normalize((matWorld * vec4(In.tangent.xyz, 0.0)).xyz);
+  v_bitangent = normalize(cross(v_normal, v_tangent) * In.tangent.w); 
+
+  v_uv = a_texCoord;
+  #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(v_uv);
+  #endif
+
+  v_uv1 = a_texCoord1;
+  #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(v_uv1);
+  #endif
+
+  #if CC_USE_ATTR_COLOR
+  v_color = a_color;
+  #endif
+
+  #if __USE_LIGHTMAP__
+    CCLightingMapCaclUV();
+
+    #if USE_INSTANCING
+      getLightingMapVectors();
+    #endif
+  #endif
+
+  CC_TRANSFER_SHADOW(pos);
+
+  gl_Position = cc_matProj * (cc_matView * matWorld) * In.position;
+}
+
+
+        }%
+        
+
+
+        CCProgram pbr-fs %{
+            
+
+#pragma extension([GL_OES_standard_derivatives, __VERSION__ < 300])
+
+precision highp float;
+
+
+
+
+
+
+#include <cc-global>
+#include <shared-ubos>
+
+#if CC_USE_ATTR_COLOR
+in vec4 v_color;
+#endif
+
+in vec3 v_position;
+in vec3 v_normal;
+in vec2 v_uv;
+in vec2 v_uv1;
+in vec3 v_tangent;
+in vec3 v_bitangent;
+
+
+
+
+
+
+// https://stackoverflow.com/questions/596216/formula-to-determine-perceived-brightness-of-rgb-color
+float Luminance( vec3 LinearColor )
+{
+  return dot( LinearColor, vec3( 0.3, 0.59, 0.11 ) );
+}
+
+
+#define saturate(a) clamp(a, 0.0, 1.0)
+#define mulProxy(a, b) (a * b)
+#define lerp mix
+
+#define Texture2DSampleBias(tex, samp, uv, bias) texture(tex, uv)
+#define Texture2DSample(tex, samp, uv) texture(tex, uv)
+
+
+#define frac fract
+
+#define half float
+#define half2 vec2
+#define half3 vec3
+#define half4 vec4
+
+#define float2 vec2
+#define float3 vec3
+#define float4 vec4
+#define float3x3 mat3
+#define float4x4 mat4
+
+#define float3x3Proxy(m11,m12,m13,m21,m22,m23,m31,m32,m33) mat3(m11,m21,m31,m12,m22,m32,m13,m23,m33)
+
+float rsqrt (float x) {
+  return 1. / sqrt(x);
+}
+
+
+#if __VERSION__ < 300
+  #ifdef GL_OES_standard_derivatives
+
+float DDX(float x)
+{
+  return dFdx(x);
+}
+float2 DDX(float2 x)
+{
+  return dFdx(x);
+}
+float3 DDX(float3 x)
+{
+  return dFdx(x);
+}
+float DDY(float x)
+{
+  return dFdy(x);
+}
+float2 DDY(float2 x)
+{
+  return dFdy(x);
+}
+float3 DDY(float3 x)
+{
+  return dFdy(x);
+}
+
+  #else
+
+float DDX(float x)
+{
+}
+float2 DDX(float2 x)
+{
+}
+float3 DDX(float3 x)
+{
+}
+float DDY(float x)
+{
+}
+float2 DDY(float2 x)
+{
+}
+float3 DDY(float3 x)
+{
+}
+
+  #endif
+#else
+#endif
+
+float rightMoveBytes(float x, int bytes)
+{
+  return x >> bytes;
+}
+float3 rightMoveBytes(float3 x, int bytes)
+{
+  return x >> bytes;
+}
+float leftMoveBytes(float x, int bytes)
+{
+  return x << bytes;
+}
+float3 leftMoveBytes(float3 x, int bytes)
+{
+  return x << bytes;
+}
+
+// vec2 matrix_row0(mat2 m, int i) { return vec2( m[0][i], m[1][i] ); }
+// vec3 matrix_row0(mat3 m, int i) { return vec3( m[0][i], m[1][i], m[2][i] ); }
+// vec4 matrix_row0(mat4 m, int i) { return vec4( m[0][i], m[1][i], m[2][i], m[3][i] ); }
+
+#define matrix_row0(m, i) m[i]
+
+
+float Square(float v)
+{
+    return v * v;
+}
+
+float log10(float n)
+{
+    const float kLogBase10 = 1.0 / log2(10.0);
+    return log2(n) * kLogBase10;
+}
+float2 log10(float2 n)
+{
+    return float2(log10(n.x), log10(n.y));
+}
+float3 log10(float3 n)
+{
+    return float3(log10(n.x), log10(n.y), log10(n.z));
+}
+
+
+
+
+
+struct Light {
+  float3 color;
+  float3 direction;
+};
+
+struct FDirectLighting
+{
+	float3 Diffuse;
+	float3 Specular;
+};
+
+// struct FPixelMaterialInputs
+// {
+// 	half Opacity;
+// 	half3 BaseColor;
+// 	half Metallic;
+// 	half Specular;
+// 	half Roughness;
+// 	half RoughnessWithClamp;
+
+// 	half3 DiffuseColor;
+// 	half3 SpecularColor;
+// };
+
+struct FPixelMaterialInputs
+{
+  float3 Normal;
+  float3 EmissiveColor;
+  float Opacity;
+  float OpacityMask;
+  float3 BaseColor;
+  float Metallic;
+  float Specular;
+  float Roughness;
+  float AmbientOcclusion;
+
+  // todo: remove unused
+  float Anisotropy;
+  float Tangent;
+  float Subsurface;
+  float Refraction;
+  float PixelDepthOffset;
+  float ShadingModel;
+
+  // 
+  half RoughnessWithClamp;
+  half3 DiffuseColor;
+	half3 SpecularColor;
+};
+
+
+struct FMaterialPixelParameters {
+  float2 TexCoords_0;
+
+  /** Interpolated vertex color, in linear color space. */
+  float4 VertexColor;
+
+  /** Normalized world space normal. */
+  float3 WorldNormal;
+  
+  /** Normalized world space tangent. */
+  float3 WorldTangent;
+
+  /** Normalized world space reflected camera vector. */
+  float3 ReflectionVector;
+
+  /** Normalized world space camera vector, which is the vector from the point being shaded to the camera position. */
+  float3 CameraVector;
+
+  /** World space light vector, only valid when rendering a light function. */
+  float3 LightVector;
+
+  /**
+   * Like SV_Position (.xy is pixel position at pixel center, z:DeviceZ, .w:SceneDepth)
+   * using shader generated value SV_POSITION
+   * Note: this is not relative to the current viewport.  RelativePixelPosition = MaterialParameters.SvPosition.xy - View.ViewRectMin.xy;
+   */
+  float4 SvPosition;
+    
+  /** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
+  float4 ScreenPosition;
+
+
+  // /**
+  //  * Orthonormal rotation-only transform from tangent space to world space
+  //  * The transpose(TangentToWorld) is WorldToTangent, and TangentToWorld[2] is WorldVertexNormal
+  //  */
+  float3x3 TangentToWorld;
+
+  // /** World vertex normal interpolated at the pixel center that is safe to use for derivatives. */
+  // float3 WorldVertexNormal_Center;
+
+  /** 
+   * Interpolated worldspace position of this pixel
+   * todo: Make this TranslatedWorldPosition and also rename the VS/DS/HS WorldPosition to be TranslatedWorldPosition
+   */
+  float3 AbsoluteWorldPosition;
+
+  // /** 
+  //  * Interpolated worldspace position of this pixel, centered around the camera
+  //  */
+  // float3 WorldPosition_CamRelative;
+
+  // /** 
+  //  * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
+  //  * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
+  //  */
+  // float3 WorldPosition_NoOffsets;
+
+  // /** 
+  //  * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
+  //  * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
+  //  */
+  // float3 WorldPosition_NoOffsets_CamRelative;
+
+  // /** Offset applied to the lighting position for translucency, used to break up aliasing artifacts. */
+  // float3 LightingPositionOffset;
+
+  // float AOMaterialMask;
+
+  float2 LightmapUVs;
+};
+
+
+
+
+
+
+
+
+float MaterialExpressionNoise(vec3 Position, float Scale, int Quality, int Function, bool bTurbulence, int Levels, float OutputMin, float OutputMax, float LevelScale, float FilterWidth, bool bTiling, float RepeatSize) {
+    return ((((Position).x + (Position).y) + (Position).z) / 3.000000);
+}
+ mat3 AP0_2_XYZ_MAT = float3x3Proxy(0.952552, 0.000000, 0.000094, 0.343966, 0.728166, (-0.072133), 0.000000, 0.000000, 1.008825);
+ mat3 XYZ_2_AP0_MAT = float3x3Proxy(1.049811, 0.000000, (-0.000097), (-0.495903), 1.373313, 0.098240, 0.000000, 0.000000, 0.991252);
+ mat3 AP1_2_XYZ_MAT = float3x3Proxy(0.662454, 0.134004, 0.156188, 0.272229, 0.674082, 0.053690, (-0.005575), 0.004061, 1.010339);
+ mat3 XYZ_2_AP1_MAT = float3x3Proxy(1.641023, (-0.324803), (-0.236425), (-0.663663), 1.615332, 0.016756, 0.011722, (-0.008284), 0.988395);
+ mat3 AP0_2_AP1_MAT = float3x3Proxy(1.451439, (-0.236511), (-0.214929), (-0.076554), 1.176230, (-0.099676), 0.008316, (-0.006032), 0.997716);
+ mat3 AP1_2_AP0_MAT = float3x3Proxy(0.695452, 0.140679, 0.163869, 0.044795, 0.859671, 0.095534, (-0.005526), 0.004025, 1.001501);
+ vec3 AP1_RGB2Y = vec3(0.272229, 0.674082, 0.053690);
+ mat3 XYZ_2_sRGB_MAT = float3x3Proxy(3.240970, (-1.537383), (-0.498611), (-0.969244), 1.875968, 0.041555, 0.055630, (-0.203977), 1.056972);
+ mat3 sRGB_2_XYZ_MAT = float3x3Proxy(0.412456, 0.357576, 0.180438, 0.212673, 0.715152, 0.072175, 0.019334, 0.119192, 0.950304);
+ mat3 XYZ_2_Rec2020_MAT = float3x3Proxy(1.716608, (-0.355662), (-0.253360), (-0.666683), 1.616478, 0.015769, 0.017642, (-0.042776), 0.942229);
+ mat3 Rec2020_2_XYZ_MAT = float3x3Proxy(0.636974, 0.144617, 0.168858, 0.262707, 0.678000, 0.059294, 0.000000, 0.028073, 1.060844);
+ mat3 XYZ_2_P3D65_MAT = float3x3Proxy(2.493396, (-0.931346), (-0.402694), (-0.829487), 1.762660, 0.023625, 0.035851, (-0.076183), 0.957014);
+ mat3 P3D65_2_XYZ_MAT = float3x3Proxy(0.486591, 0.265668, 0.198190, 0.228984, 0.691740, 0.079276, 0.000000, 0.045114, 1.043803);
+ mat3 D65_2_D60_CAT = float3x3Proxy(1.013030, 0.006105, (-0.014971), 0.007698, 0.998165, (-0.005032), (-0.002841), 0.004685, 0.924507);
+ mat3 D60_2_D65_CAT = float3x3Proxy(0.987224, (-0.006113), 0.015953, (-0.007598), 1.001860, 0.005330, 0.003073, (-0.005096), 1.081680);
+ float HALF_MAX = 65504.000000;
+float rgb_2_saturation(vec3 rgb) {
+    float minrgb = min(min((rgb).r, (rgb).g), (rgb).b);
+    float maxrgb = max(max((rgb).r, (rgb).g), (rgb).b);
+    return ((max(maxrgb, 0.000000) - max(minrgb, 0.000000)) / max(maxrgb, 0.010000));
+}
+float glow_fwd(float ycIn, float glowGainIn, float glowMid) {
+    float glowGainOut;
+    if ((ycIn <= ((2.000000 / 3.000000) * glowMid))) {
+        (glowGainOut = glowGainIn);
+    }
+    else {
+        if ((ycIn >= (2.000000 * glowMid))) {
+            (glowGainOut = 0.000000);
+        }
+        else {
+            (glowGainOut = (glowGainIn * ((glowMid / ycIn) - 0.500000)));
+        }
+    }
+    return glowGainOut;
+}
+float glow_inv(float ycOut, float glowGainIn, float glowMid) {
+    float glowGainOut;
+    if ((ycOut <= ((((float (1) + glowGainIn) * 2.000000) / 3.000000) * glowMid))) {
+        (glowGainOut = ((-glowGainIn) / (float (1) + glowGainIn)));
+    }
+    else {
+        if ((ycOut >= (2.000000 * glowMid))) {
+            (glowGainOut = 0.000000);
+        }
+        else {
+            (glowGainOut = ((glowGainIn * ((glowMid / ycOut) - (1.000000 / 2.000000))) / ((glowGainIn / 2.000000) - 1.000000)));
+        }
+    }
+    return glowGainOut;
+}
+float sigmoid_shaper(float x) {
+    float t = max((float (1) - abs((0.500000 * x))), float (0));
+    float y = (float (1) + (sign(x) * (float (1) - (t * t))));
+    return (0.500000 * y);
+}
+float center_hue(float hue, float centerH) {
+    float hueCentered = (hue - centerH);
+    if ((hueCentered < (-180.000000))) {
+        (hueCentered += float (360));
+    }
+    else {
+        if ((hueCentered > 180.000000)) {
+            (hueCentered -= float (360));
+        }
+    }
+    return hueCentered;
+}
+float rgb_2_hue(vec3 rgb) {
+    float hue;
+    if (((rgb[0] == rgb[1]) && (rgb[1] == rgb[2]))) {
+        (hue = float (0));
+    }
+    else {
+        (hue = ((180.000000 / 3.14159265359) * atan((sqrt(3.000000) * (rgb[1] - rgb[2])), (((2.000000 * rgb[0]) - rgb[1]) - rgb[2]))));
+    }
+    if ((hue < 0.000000)) {
+        (hue = (hue + 360.000000));
+    }
+    return clamp(hue, 0.000000, 360.000000);
+}
+float rgb_2_yc(vec3 rgb, float ycRadiusWeight) {
+    float r = rgb[0];
+    float g = rgb[1];
+    float b = rgb[2];
+    float chroma = sqrt((((b * (b - g)) + (g * (g - r))) + (r * (r - b))));
+    return ((((b + g) + r) + (ycRadiusWeight * chroma)) / 3.000000);
+}
+vec3 XYZ_2_xyY(vec3 XYZ) {
+    vec3 xyY;
+    float divisor = ((XYZ[0] + XYZ[1]) + XYZ[2]);
+    if ((divisor == 0.000000)) {
+        (divisor = 0.000000);
+    }
+    (xyY[0] = (XYZ[0] / divisor));
+    (xyY[1] = (XYZ[1] / divisor));
+    (xyY[2] = XYZ[1]);
+    return xyY;
+}
+vec3 xyY_2_XYZ(vec3 xyY) {
+    vec3 XYZ;
+    (XYZ[0] = ((xyY[0] * xyY[2]) / max(xyY[1], 0.000000)));
+    (XYZ[1] = xyY[2]);
+    (XYZ[2] = ((((1.000000 - xyY[0]) - xyY[1]) * xyY[2]) / max(xyY[1], 0.000000)));
+    return XYZ;
+}
+ mat3 ConeResponse = float3x3Proxy(0.895100, 0.266400, (-0.161400), (-0.750200), 1.713500, 0.036700, 0.038900, (-0.068500), 1.029600);
+ mat3 InvConeResponse = float3x3Proxy(0.986993, (-0.147054), 0.159963, 0.432305, 0.518360, 0.049291, (-0.008529), 0.040043, 0.968487);
+mat3 ChromaticAdaptation(vec2 src_xy, vec2 dst_xy) {
+    vec3 src_XYZ = xyY_2_XYZ(vec3(src_xy, 1));
+    vec3 dst_XYZ = xyY_2_XYZ(vec3(dst_xy, 1));
+    vec3 src_coneResp = mulProxy(ConeResponse, src_XYZ);
+    vec3 dst_coneResp = mulProxy(ConeResponse, dst_XYZ);
+    mat3 VonKriesMat = float3x3Proxy(((dst_coneResp).x / (src_coneResp).x), 0.000000, 0.000000, 0.000000, ((dst_coneResp).y / (src_coneResp).y), 0.000000, 0.000000, 0.000000, ((dst_coneResp).z / (src_coneResp).z));
+    return mulProxy(InvConeResponse, mulProxy(VonKriesMat, ConeResponse));
+}
+ float FilmSlope = 0.880000;
+ float FilmToe = 0.550000;
+ float FilmShoulder = 0.260000;
+ float FilmBlackClip = float (0);
+ float FilmWhiteClip = 0.040000;
+vec3 FilmToneMap(vec3 LinearColor) {
+    mat3 sRGB_2_AP0 = mulProxy(XYZ_2_AP0_MAT, mulProxy(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+    mat3 sRGB_2_AP1 = mulProxy(XYZ_2_AP1_MAT, mulProxy(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
+    mat3 AP0_2_sRGB = mulProxy(XYZ_2_sRGB_MAT, mulProxy(D60_2_D65_CAT, AP0_2_XYZ_MAT));
+    mat3 AP1_2_sRGB = mulProxy(XYZ_2_sRGB_MAT, mulProxy(D60_2_D65_CAT, AP1_2_XYZ_MAT));
+    mat3 AP0_2_AP1 = mulProxy(XYZ_2_AP1_MAT, AP0_2_XYZ_MAT);
+    mat3 AP1_2_AP0 = mulProxy(XYZ_2_AP0_MAT, AP1_2_XYZ_MAT);
+    vec3 ColorAP1 = vec3 (LinearColor);
+    vec3 ColorAP0 = mulProxy(AP1_2_AP0, ColorAP1);
+    float RRT_GLOW_GAIN = 0.050000;
+    float RRT_GLOW_MID = 0.080000;
+    float saturation = rgb_2_saturation(ColorAP0);
+    float ycIn = rgb_2_yc(ColorAP0, 1.750000);
+    float s = sigmoid_shaper(((saturation - 0.400000) / 0.200000));
+    float addedGlow = (float (1) + glow_fwd(ycIn, (RRT_GLOW_GAIN * s), RRT_GLOW_MID));
+    (ColorAP0 *= vec3 (addedGlow));
+    float RRT_RED_SCALE = 0.820000;
+    float RRT_RED_PIVOT = 0.030000;
+    float RRT_RED_HUE = float (0);
+    float RRT_RED_WIDTH = float (135);
+    float hue = rgb_2_hue(ColorAP0);
+    float centeredHue = center_hue(hue, RRT_RED_HUE);
+    float hueWeight = Square(smoothstep(0.000000, 1.000000, (1.000000 - abs(((2.000000 * centeredHue) / RRT_RED_WIDTH)))));
+    ((ColorAP0).r += (((hueWeight * saturation) * (RRT_RED_PIVOT - (ColorAP0).r)) * (1.000000 - RRT_RED_SCALE)));
+    vec3 WorkingColor = mulProxy(AP0_2_AP1_MAT, ColorAP0);
+    (WorkingColor = max(vec3 (0.000000), WorkingColor));
+    (WorkingColor = vec3 (mix(vec3 (dot(WorkingColor, AP1_RGB2Y)), vec3 (WorkingColor), vec3 (0.960000))));
+    float ToeScale = float (((1.000000 + FilmBlackClip) - FilmToe));
+    float ShoulderScale = float (((1.000000 + FilmWhiteClip) - FilmShoulder));
+    float InMatch = 0.180000;
+    float OutMatch = 0.180000;
+    float ToeMatch;
+    if ((FilmToe > 0.800000)) {
+        (ToeMatch = ((((float (1) - FilmToe) - OutMatch) / FilmSlope) + log10(InMatch)));
+    }
+    else {
+        float bt = (((OutMatch + FilmBlackClip) / ToeScale) - float (1));
+        (ToeMatch = (log10(InMatch) - ((0.500000 * log(((float (1) + bt) / (float (1) - bt)))) * (ToeScale / FilmSlope))));
+    }
+    float StraightMatch = (((float (1) - FilmToe) / FilmSlope) - ToeMatch);
+    float ShoulderMatch = ((FilmShoulder / FilmSlope) - StraightMatch);
+    vec3 LogColor = vec3 (log10(WorkingColor));
+    vec3 StraightColor = vec3 ((FilmSlope * (vec3 (LogColor) + vec3 (StraightMatch))));
+    vec3 ToeColor = vec3 ((vec3 ((-FilmBlackClip)) + ((2.000000 * ToeScale) / (vec3 (1.000000) + exp(((((-2.000000) * FilmSlope) / ToeScale) * (vec3 (LogColor) - vec3 (ToeMatch))))))));
+    vec3 ShoulderColor = vec3 ((vec3 ((1.000000 + FilmWhiteClip)) - ((2.000000 * ShoulderScale) / (vec3 (1.000000) + exp((((2.000000 * FilmSlope) / ShoulderScale) * (vec3 (LogColor) - vec3 (ShoulderMatch))))))));
+    (ToeColor = ((((((LogColor).r < ToeMatch) || ((LogColor).g < ToeMatch)) || ((LogColor).b < ToeMatch)))?(ToeColor):(StraightColor)));
+    (ShoulderColor = ((((((LogColor).r > ShoulderMatch) || ((LogColor).g > ShoulderMatch)) || ((LogColor).b > ShoulderMatch)))?(ShoulderColor):(StraightColor)));
+    vec3 t = vec3 (clamp(((vec3 (LogColor) - vec3 (ToeMatch)) / (ShoulderMatch - ToeMatch)), 0.0, 1.0));
+    (t = vec3 ((((ShoulderMatch < ToeMatch))?((vec3 (1.000000) - vec3 (t))):(t))));
+    (t = vec3 ((((vec3 (3.000000) - (2.000000 * t)) * t) * t)));
+    vec3 ToneColor = mix(ToeColor, ShoulderColor, t);
+    (ToneColor = mix(vec3 (dot(vec3(ToneColor), AP1_RGB2Y)), ToneColor, vec3 (0.930000)));
+    return vec3 (max(vec3 (0.000000), vec3 (ToneColor)));
+}
+mat3 OuputGamutMappingMatrix(int OutputGamut) {
+    mat3 AP1_2_sRGB = mulProxy(XYZ_2_sRGB_MAT, mulProxy(D60_2_D65_CAT, AP1_2_XYZ_MAT));
+    return AP1_2_sRGB;
+}
+vec4 UnpackNormalMap(vec4 TextureSample) {
+    vec2 NormalXY = (TextureSample).rg;
+    (NormalXY = ((NormalXY * vec2(2.000000, 2.000000)) - vec2(1.000000, 1.000000)));
+    float NormalZ = sqrt(clamp((1.000000 - dot(NormalXY, NormalXY)), 0.0, 1.0));
+    return vec4((NormalXY).xy, NormalZ, 1.000000);
+}
+vec3 GetMaterialNormalRaw(FPixelMaterialInputs PixelMaterialInputs) {
+    return vec3 ((PixelMaterialInputs).Normal);
+}
+vec3 GetWorldPosition(FMaterialPixelParameters Parameters) {
+    return (Parameters).AbsoluteWorldPosition;
+}
+vec3 GetMaterialNormal(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs) {
+    vec3 RetNormal = GetMaterialNormalRaw(PixelMaterialInputs);
+    return RetNormal;
+}
+vec3 TransformTangentNormalToWorld(mat3 TangentToWorld, vec3 normal) {
+    return mulProxy(TangentToWorld, normal);
+}
+vec3 ReflectionAboutCustomWorldNormal(FMaterialPixelParameters Parameters, vec3 WorldNormal, bool bNormalizeInputNormal) {
+    if (bNormalizeInputNormal) {
+        (WorldNormal = normalize(WorldNormal));
+    }
+    return ((-(Parameters).CameraVector) + ((WorldNormal * dot(WorldNormal, (Parameters).CameraVector)) * 2.000000));
+}
+vec4 SvPositionToResolvedScreenPosition(vec4 SvPosition) {
+    vec2 pixelPos = (SvPosition).xy;
+    vec3 ndc = vec3((((pixelPos * (cc_screenSize).zw) - vec2 (0.500000)) * 2.000000), (gl_FragCoord));
+    vec4 screenPos = (vec4(ndc, 1.000000) / (gl_FragCoord));
+    return screenPos;
+}
+vec4 GetScreenPosition(FMaterialPixelParameters Parameters) {
+    return (Parameters).ScreenPosition;
+}
+vec4 ProcessMaterialColorTextureLookup(vec4 TextureValue) {
+    return vec4(pow((TextureValue).rgb, vec3 (2.200000)), (TextureValue).a);
+}
+vec4 ProcessMaterialExternalTextureLookup(vec4 TextureValue) {
+    return ProcessMaterialColorTextureLookup(TextureValue);
+}
+vec4 ProcessMaterialLinearColorTextureLookup(vec4 TextureValue) {
+    return TextureValue;
+}
+vec4 ProcessMaterialGreyscaleTextureLookup(float TextureValue) {
+    return vec4(pow(TextureValue, 2.200000));
+}
+vec4 ProcessMaterialLinearGreyscaleTextureLookup(float TextureValue) {
+    return vec4(TextureValue);
+}
+float PositiveClampedPow(float X, float Y) {
+    return pow(max(X, 0.000001), Y);
+}
+void CalcPixelMaterialInputs(inout FMaterialPixelParameters Parameters, inout FPixelMaterialInputs PixelMaterialInputs) {
+    vec4 Local0 = UnpackNormalMap(Texture2DSampleBias(Material_Texture2D_0, Material_Texture2D_0Sampler, ((Parameters).TexCoords_0).xy, 0.));
+    ((PixelMaterialInputs).Normal = (Local0).rgb);
+    vec3 MaterialNormal = vec3 (GetMaterialNormal(Parameters, PixelMaterialInputs));
+    ((Parameters).WorldNormal = normalize(MaterialNormal));
+    ((Parameters).ReflectionVector = ReflectionAboutCustomWorldNormal(Parameters, (Parameters).WorldNormal, false));
+    vec4 Local1 = ProcessMaterialColorTextureLookup(Texture2DSampleBias(Material_Texture2D_1, Material_Texture2D_1Sampler, ((Parameters).TexCoords_0).xy, 0.));
+    vec3 Local2 = vec3 (mix(vec3 ((Material_VectorExpressions_0).rgb), vec3 ((Material_VectorExpressions_1).rgb), vec3 (float((Local1).g))));
+    vec3 Local3 = (Local2 * (Local1).r);
+    float Local4 = mix(0.000000, 1.000000, (Local1).g);
+    float Local5 = mix(Material_ScalarExpressions_0.x, Material_ScalarExpressions_0.y, (Local1).g);
+    ((PixelMaterialInputs).EmissiveColor = vec3(0.000000, 0.000000, 0.000000));
+    ((PixelMaterialInputs).Opacity = 1.000000);
+    ((PixelMaterialInputs).OpacityMask = 1.000000);
+    ((PixelMaterialInputs).BaseColor = Local3);
+    ((PixelMaterialInputs).Metallic = Local4);
+    ((PixelMaterialInputs).Specular = 0.500000);
+    ((PixelMaterialInputs).Roughness = Local5);
+    ((PixelMaterialInputs).Anisotropy = 0.000000);
+    ((PixelMaterialInputs).Tangent = float (vec3(1.000000, 0.000000, 0.000000)));
+    ((PixelMaterialInputs).Subsurface = float (0));
+    ((PixelMaterialInputs).AmbientOcclusion = 1.000000);
+    ((PixelMaterialInputs).Refraction = float (0));
+    ((PixelMaterialInputs).PixelDepthOffset = 0.000000);
+    ((PixelMaterialInputs).ShadingModel = float (1));
+    ((Parameters).WorldTangent = vec3 (0));
+}
+
+#include <cc-global>
+
+uniform CCCustomView {
+    vec4 cc_view_SkyIrradianceEnvironmentMap[7];
+    vec4 cc_view_SkyColor; 
+    vec4 cc_view_SkyLightParameters; 
+    vec4 cc_view_IndirectLightingColorScale_Intensity;    
+    vec4 cc_view_PreExposure;   
+};
+
+struct GlobalView {
+    vec3 IndirectLightingColorScale;
+    float PreExposure;
+};
+
+void getGlobalView (out GlobalView View) {
+    View.IndirectLightingColorScale = cc_view_IndirectLightingColorScale_Intensity.rgb * cc_view_IndirectLightingColorScale_Intensity.w;
+    View.PreExposure = cc_view_PreExposure.x;
+}
+
+#include <texture-lod>
+
+
+vec3 RGBE2Linear (vec4 rgbe) {
+    return rgbe.rgb * pow(2.0, rgbe.a * 255.0 - 128.0);
+}
+
+vec3 RGBM2Linear( vec4 rgbm ) {
+	vec3 color = rgbm.rgb * (rgbm.a * 64.0);
+    return color * color; 
+}
+vec3 RGBM2Linear( vec4 rgbm, float MaxValue )
+{
+	vec3 color = rgbm.rgb * (rgbm.a * MaxValue);
+    return color * color; 
+}
+
+
+
+
+
+
+/** 
+ * Compute absolute mip for a reflection capture cubemap given a roughness.
+ */
+half ComputeReflectionCaptureMipFromRoughness(half Roughness, half CubemapMaxMip)
+{
+	// Heuristic that maps roughness to mip level
+	// This is done in a way such that a certain mip level will always have the same roughness, regardless of how many mips are in the texture
+	// Using more mips in the cubemap just allows sharper reflections to be supported
+	half LevelFrom1x1 = 1.000001 - 1.2 * log2(Roughness);
+	return CubemapMaxMip - 1. - LevelFrom1x1;
+}
+
+
+
+
+vec4 decodeCubemap (vec4 color) {
+
+  return color;
+}
+
+
+ /** 
+  * Computes sky diffuse lighting from the SH irradiance map.  
+  * This has the SH basis evaluation and diffuse convolution weights combined for minimal ALU's - see "Stupid Spherical Harmonics (SH) Tricks" 
+  */
+float3 GetSkySHDiffuse(float3 Normal)
+{
+  // hack : unreal axis is different with cocos
+  float tmp = Normal.y;
+  Normal.y = Normal.z;
+  Normal.z = -tmp;
+
+  float4 NormalVector = float4(Normal, 1.);
+
+  float3 Intermediate0, Intermediate1, Intermediate2;
+  Intermediate0.x = dot(cc_view_SkyIrradianceEnvironmentMap[0], NormalVector);
+  Intermediate0.y = dot(cc_view_SkyIrradianceEnvironmentMap[1], NormalVector);
+  Intermediate0.z = dot(cc_view_SkyIrradianceEnvironmentMap[2], NormalVector);
+
+  float4 vB = NormalVector.xyzz * NormalVector.yzzx;
+  Intermediate1.x = dot(cc_view_SkyIrradianceEnvironmentMap[3], vB);
+  Intermediate1.y = dot(cc_view_SkyIrradianceEnvironmentMap[4], vB);
+  Intermediate1.z = dot(cc_view_SkyIrradianceEnvironmentMap[5], vB);
+
+  float vC = NormalVector.x * NormalVector.x - NormalVector.y * NormalVector.y;
+  Intermediate2 = cc_view_SkyIrradianceEnvironmentMap[6].xyz * vC;
+
+  // max to not get negative colors
+  return max(float3(0.), Intermediate0 + Intermediate1 + Intermediate2);
+}
+
+#pragma builtin(global)
+layout(set = 0, binding = 14) uniform samplerCube cc_ibl_map_sky;
+
+float3 GetSkyLightReflection(float3 ReflectionVector, float Roughness, out float OutSkyAverageBrightness) {
+	float AbsoluteSpecularMip = ComputeReflectionCaptureMipFromRoughness(Roughness, cc_view_SkyLightParameters.x);
+	float3 Reflection = decodeCubemap(fragTextureLod(cc_ibl_map_sky, ReflectionVector, AbsoluteSpecularMip)).rgb;
+
+	OutSkyAverageBrightness = cc_view_SkyColor.w * Luminance( cc_view_SkyColor.rgb );
+	return Reflection * cc_view_SkyColor.rgb;
+}
+
+
+#pragma builtin(global)
+layout(set = 0, binding = 15) uniform sampler2D cc_ibl_cluster_InfoTexture;
+#pragma builtin(global)
+layout(set = 0, binding = 16) uniform sampler2D cc_ibl_cluster_Texture;
+#pragma builtin(global)
+layout(set = 0, binding = 17) uniform sampler2D cc_ibl_cluster_CubemapAtlas;
+
+uniform CCIBLCluster {
+  vec4 cc_ibl_cluster_BoundsMin;
+  vec4 cc_ibl_cluster_BoundsDelta;
+  vec4 cc_ibl_cluster_CellsDot;
+  vec4 cc_ibl_cluster_CellsMax;
+  vec4 cc_ibl_cluster_TextureSize;         
+  vec4 cc_ibl_cluster_InfoTextureInvSize;  
+  vec4 cc_ibl_cluster_CellsCountByBoundsSizeAndPixelsPerCell; 
+};
+
+
+vec2 convert_xyz_to_cube_uv(vec3 d, float mipLevel)
+{
+    d.y = -d.y;
+
+    vec3 d_abs = abs(d);
+  
+    bool isPositive_x = d.x > 0. ? true : false;
+    bool isPositive_y = d.y > 0. ? true : false;
+    bool isPositive_z = d.z > 0. ? true : false;
+  
+    float maxAxis, uc, vc;
+    float index;
+  
+    // POSITIVE X
+    if (isPositive_x && d_abs.x >= d_abs.y && d_abs.x >= d_abs.z) {
+        // u (0 to 1) goes from +y to -y
+        // v (0 to 1) goes from -z to +z
+        maxAxis = d_abs.x;
+        uc = -d.z;
+        vc = d.y;
+        index = 0.;
+    }
+    // NEGATIVE X
+    if (!isPositive_x && d_abs.x >= d_abs.y && d_abs.x >= d_abs.z) {
+        // u (0 to 1) goes from -y to +y
+        // v (0 to 1) goes from -z to +z
+        maxAxis = d_abs.x;
+        uc = d.z;
+        vc = d.y;
+        index = 1.;
+    }
+    // POSITIVE Y
+    if (isPositive_y && d_abs.y >= d_abs.x && d_abs.y >= d_abs.z) {
+        // u (0 to 1) goes from -x to +x
+        // v (0 to 1) goes from +z to -z
+        maxAxis = d_abs.y;
+        uc = d.x;
+        vc = -d.z;
+        index = 3.;
+    }
+    // NEGATIVE Y
+    if (!isPositive_y && d_abs.y >= d_abs.x && d_abs.y >= d_abs.z) {
+        // u (0 to 1) goes from -x to +x
+        // v (0 to 1) goes from -z to +z
+        maxAxis = d_abs.y;
+        uc = d.x;
+        vc = d.z;
+        index = 2.;
+    }
+    // POSITIVE Z
+    if (isPositive_z && d_abs.z >= d_abs.x && d_abs.z >= d_abs.y) {
+        // u (0 to 1) goes from -x to +x
+        // v (0 to 1) goes from +y to -y
+        maxAxis = d_abs.z;
+        uc = d.x;
+        vc = d.y;
+        index = 4.;
+    }
+    // NEGATIVE Z
+    if (!isPositive_z && d_abs.z >= d_abs.x && d_abs.z >= d_abs.y) {
+        // u (0 to 1) goes from -x to +x
+        // v (0 to 1) goes from -y to +y
+        maxAxis = d_abs.z;
+        uc = -d.x;
+        vc = d.y;
+        index = 5.;
+    }
+
+    // to avoid black edge
+    float shrinkRatio = 1. - (mipLevel + 1.) * 0.01;
+
+    // Convert range from -1 to 1 to 0 to 1
+    vec2 o;
+    o.x = 0.5 * (uc / maxAxis * shrinkRatio + 1.0);
+    o.y = 0.5 * (vc / maxAxis * shrinkRatio + 1.0);
+
+    o.x = (o.x + index) / 6.;
+
+    return o;
+}
+
+float ComputeMixingWeight(float IndirectIrradiance, float AverageBrightness, float Roughness)
+{
+	// Mirror surfaces should have no mixing, so they match reflections from other sources (SSR, planar reflections)
+	float MixingAlpha = smoothstep(0., 1., saturate(Roughness * 5.000001 + -0.5));
+
+	// We have high frequency directional data but low frequency spatial data in the envmap.
+	// We have high frequency spatial data but low frequency directional data in the lightmap.
+	// So, we combine the two for the best of both. This is done by removing the low spatial frequencies from the envmap and replacing them with the lightmap data.
+	// This is only done with luma so as to not get odd color shifting.
+	float MixingWeight = IndirectIrradiance / max(AverageBrightness, .0001);
+
+	MixingWeight = min(MixingWeight, 10000.000001);
+
+	return lerp(1.0, MixingWeight, MixingAlpha);
+}
+
+float3 GetLookupVectorForSphereCapture(float3 ReflectionVector, float3 WorldPosition, float4 SphereCapturePositionAndRadius, float NormalizedDistanceToCapture, float3 LocalCaptureOffset, inout float DistanceAlpha)
+{
+	float3 ProjectedCaptureVector = ReflectionVector;
+	float ProjectionSphereRadius = SphereCapturePositionAndRadius.w;
+	float SphereRadiusSquared = ProjectionSphereRadius * ProjectionSphereRadius;
+
+	float3 LocalPosition = WorldPosition - SphereCapturePositionAndRadius.xyz;
+	float LocalPositionSqr = dot(LocalPosition, LocalPosition);
+
+	// Find the intersection between the ray along the reflection vector and the capture's sphere
+	float3 QuadraticCoef;
+	QuadraticCoef.x = 1.;
+	QuadraticCoef.y = dot(ReflectionVector, LocalPosition);
+	QuadraticCoef.z = LocalPositionSqr - SphereRadiusSquared;
+
+	float Determinant = QuadraticCoef.y * QuadraticCoef.y - QuadraticCoef.z;
+
+	// Only continue if the ray intersects the sphere
+	// FLATTEN
+	if (Determinant >= 0.)
+	{
+		float FarIntersection = sqrt(Determinant) - QuadraticCoef.y;
+
+		float3 LocalIntersectionPosition = LocalPosition + FarIntersection * ReflectionVector;
+		ProjectedCaptureVector = LocalIntersectionPosition - LocalCaptureOffset;
+		// Note: some compilers don't handle smoothstep min > max (this was 1, .6)
+		//DistanceAlpha = 1.0 - smoothstep(.6, 1, NormalizedDistanceToCapture);
+
+		float x = saturate( 2.5 * NormalizedDistanceToCapture - 1.5 );
+		DistanceAlpha = 1. - x*x*(3. - 2.*x);
+	}
+	return ProjectedCaptureVector;
+}
+
+void EvaluateClusterIBL(float iblIndex, FMaterialPixelParameters MaterialParameters, float mip, float IndirectIrradiance, inout float4 ImageBasedReflections, inout float2 CompositedAverageBrightness, float IndirectSpecularOcclusion) {
+  float iblV = (iblIndex + 0.5) * cc_ibl_cluster_InfoTextureInvSize.y;
+  
+  // post range
+  vec4 posRange = texture(cc_ibl_cluster_InfoTexture, vec2(0.5 * cc_ibl_cluster_InfoTextureInvSize.x, iblV));
+  if (length(posRange.xyz - MaterialParameters.AbsoluteWorldPosition) > posRange.w) {
+      return;
+  }
+
+  // capture vector
+  float3 CaptureVector = MaterialParameters.AbsoluteWorldPosition - posRange.xyz;
+  float CaptureVectorLength = sqrt(dot(CaptureVector, CaptureVector));		
+  float NormalizedDistanceToCapture = saturate(CaptureVectorLength / posRange.w);
+  
+  // TODO: calc LocalCaptureOffset
+  float3 LocalCaptureOffset = float3(0.);
+
+  vec3 ProjectedCaptureVector = MaterialParameters.ReflectionVector;
+  float DistanceAlpha = 0.;
+  ProjectedCaptureVector = GetLookupVectorForSphereCapture(ProjectedCaptureVector, MaterialParameters.AbsoluteWorldPosition, posRange, NormalizedDistanceToCapture, LocalCaptureOffset, DistanceAlpha);
+
+  // uv
+  vec2 uv = convert_xyz_to_cube_uv(ProjectedCaptureVector, mip);
+  vec4 uvMapping = texture(cc_ibl_cluster_InfoTexture, vec2(1.5 * cc_ibl_cluster_InfoTextureInvSize.x, iblV));
+  uv = uvMapping.xy + uvMapping.zw * uv;
+
+  // sample
+  vec4 iblSample = decodeCubemap(fragTextureLod(cc_ibl_cluster_CubemapAtlas, uv, mip));
+
+  // brightness
+  vec4 data3 = texture(cc_ibl_cluster_InfoTexture, vec2(2.5 * cc_ibl_cluster_InfoTextureInvSize.x, iblV));
+  float averageBrightness = data3.x;
+  float brightness = data3.y;
+
+  iblSample.rgb *= brightness;
+  iblSample *= DistanceAlpha;
+
+	ImageBasedReflections.rgb += iblSample.rgb * ImageBasedReflections.a * IndirectSpecularOcclusion;
+  ImageBasedReflections.a *= 1. - iblSample.a;
+
+  CompositedAverageBrightness.x += averageBrightness * DistanceAlpha * CompositedAverageBrightness.y;
+  CompositedAverageBrightness.y *= 1. - DistanceAlpha;
+}
+
+float GetSpecularOcclusion(float NoV, float RoughnessSq, float AO)
+{
+	return saturate( pow( NoV + AO, RoughnessSq ) - 1. + AO );
+}
+
+
+vec3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameters, float Roughness, float IndirectIrradiance, GlobalView View) {
+	// Indirect occlusion from DFAO, which should be applied to reflection captures and skylight specular, but not SSR
+  const float IndirectSpecularOcclusion = 1.0;
+
+  float RoughnessSq = Roughness * Roughness;
+  float NoV = max(dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector), 0.);
+  float AO = 1.;
+  float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, AO);
+
+  float4 ImageBasedReflections = vec4(vec3(0.), SpecularOcclusion);
+	float2 CompositedAverageBrightness = float2(0.0, 1.0);
+    
+  vec3 cellCoords = floor((MaterialParameters.AbsoluteWorldPosition - cc_ibl_cluster_BoundsMin.xyz) * cc_ibl_cluster_CellsCountByBoundsSizeAndPixelsPerCell.xyz);
+  if ((cellCoords.x < 0.) || (cellCoords.y < 0.) || (cellCoords.z < 0.) ||
+      (cellCoords.x > cc_ibl_cluster_CellsMax.x) || (cellCoords.y > cc_ibl_cluster_CellsMax.y) || (cellCoords.z > cc_ibl_cluster_CellsMax.z)) {
+    ImageBasedReflections.rgb = vec3(0.);
+  }
+  else {
+    float Mip = ComputeReflectionCaptureMipFromRoughness(Roughness, 7.000001);
+
+    // cell index (mapping from 3d cell coordinates to linear memory)
+    float cellIndex = dot(cc_ibl_cluster_CellsDot.xyz, cellCoords);
+
+    // convert cell index to uv coordinates
+    float clusterV = floor(cellIndex * cc_ibl_cluster_TextureSize.y);
+    float clusterU = cellIndex - (clusterV * cc_ibl_cluster_TextureSize.x);
+    clusterV = (clusterV + 0.5) * cc_ibl_cluster_TextureSize.z;
+
+    // loop over maximum possible number of supported light cells
+    const float maxLightCells = 256.0 / 4.0;  
+    for (float cellIndex = 0.5; cellIndex < maxLightCells; cellIndex++) {
+
+      vec4 lightIndices = texture(cc_ibl_cluster_Texture, vec2(cc_ibl_cluster_TextureSize.y * (clusterU + cellIndex), clusterV));
+      vec4 indices = lightIndices * 255.0;
+
+      if (indices.x <= 0.0 || ImageBasedReflections.a < 0.001)
+        break;
+
+      EvaluateClusterIBL(indices.x, MaterialParameters, Mip, IndirectIrradiance, ImageBasedReflections, CompositedAverageBrightness, IndirectSpecularOcclusion);
+
+      if (indices.y <= 0.0 || ImageBasedReflections.a < 0.001)
+        break;
+
+      EvaluateClusterIBL(indices.y, MaterialParameters, Mip, IndirectIrradiance, ImageBasedReflections, CompositedAverageBrightness, IndirectSpecularOcclusion);
+
+      if (indices.z <= 0.0 || ImageBasedReflections.a < 0.001)
+        break;
+
+      EvaluateClusterIBL(indices.z, MaterialParameters, Mip, IndirectIrradiance, ImageBasedReflections, CompositedAverageBrightness, IndirectSpecularOcclusion);
+
+      if (indices.w <= 0.0 || ImageBasedReflections.a < 0.001)
+        break;
+
+      EvaluateClusterIBL(indices.w, MaterialParameters, Mip, IndirectIrradiance, ImageBasedReflections, CompositedAverageBrightness, IndirectSpecularOcclusion);
+
+      // end of the cell array
+      if (cellIndex > cc_ibl_cluster_CellsCountByBoundsSizeAndPixelsPerCell.w) {
+        break;
+      }
+    }
+  }
+
+  ImageBasedReflections.rgb *= View.IndirectLightingColorScale;
+  CompositedAverageBrightness.x *= Luminance( View.IndirectLightingColorScale );
+
+  // sky light
+  float SkyAverageBrightness = 1.;
+	float3 SkyLighting = GetSkyLightReflection(MaterialParameters.ReflectionVector, Roughness, SkyAverageBrightness);
+  ImageBasedReflections.rgb += ImageBasedReflections.a * SkyLighting * IndirectSpecularOcclusion;
+  CompositedAverageBrightness.x += SkyAverageBrightness * CompositedAverageBrightness.y;
+            
+  // mixing
+	ImageBasedReflections.rgb *= ComputeMixingWeight(IndirectIrradiance, CompositedAverageBrightness.x, Roughness);
+
+  return ImageBasedReflections.rgb;
+} 
+
+
+#include <cc-shadow-map-base>
+
+// Taken from https://gist.github.com/romainguy/a2e9208f14cae37c579448be99f78f25
+// Modified by Epic Games, Inc. To account for premultiplied light color and code style rules.
+
+half GGX_Mobile(half Roughness, half NoH, half3 H, half3 N)
+{
+    // Walter et al. 2007, "Microfacet Models for Refraction through Rough Surfaces"
+
+    // In mediump, there are two problems computing 1.0 - NoH^2
+    // 1) 1.0 - NoH^2 suffers floating point cancellation when NoH^2 is close to 1 (highlights)
+    // 2) NoH doesn't have enough precision around 1.0
+    // Both problem can be fixed by computing 1-NoH^2 in highp and providing NoH in highp as well
+
+    // However, we can do better using Lagrange's identity:
+    //      ||a x b||^2 = ||a||^2 ||b||^2 - (a . b)^2
+    // since N and H are unit vectors: ||N x H||^2 = 1.0 - NoH^2
+    // This computes 1.0 - NoH^2 directly (which is close to zero in the highlights and has
+    // enough precision).
+    // Overall this yields better performance, keeping all computations in mediump
+
+    vec3 NxH = cross(N, H);
+    float OneMinusNoHSqr = dot(NxH, NxH);
+    float a = Roughness * Roughness;
+    float n = NoH * a;
+    float p = a / (OneMinusNoHSqr + n * n);
+    return p * p;
+}
+
+
+float CalcSpecular(float Roughness, float RoughnessWithClamp, float NoH, vec3 H, vec3 N)
+{
+	return (Roughness*0.25 + 0.25) * GGX_Mobile(RoughnessWithClamp, NoH, H, N);
+}
+
+FDirectLighting MobileIntegrateBxDF(FPixelMaterialInputs ShadingModelContext, vec3 N, vec3 H, float NoH)
+{
+	FDirectLighting Lighting;
+	Lighting.Specular = ShadingModelContext.SpecularColor * CalcSpecular(ShadingModelContext.Roughness, ShadingModelContext.RoughnessWithClamp, NoH, H, N);
+	Lighting.Diffuse = ShadingModelContext.DiffuseColor;
+	return Lighting;
+}
+
+
+half3 EnvBRDFApprox( half3 SpecularColor, half Roughness, half NoV )
+{
+	// [ Lazarov 2013, "Getting More Physical in Call of Duty: Black Ops II" ]
+	// Adaptation to fit our G term.
+	const half4 c0 = half4(-1., -0.0275, -0.572, 0.022);
+	const half4 c1 = half4(1., 0.0425, 1.04, -0.04);
+	half4 r = Roughness * c0 + c1;
+	half a004 = min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
+	half2 AB = half2( -1.04, 1.04 ) * a004 + r.zw;
+
+	// Anything less than 2% is physically impossible and is instead considered to be shadowing
+	// Note: this is needed for the 'specular' show flag to work, since it uses a SpecularColor of 0
+	AB.y *= saturate( 50.0 * SpecularColor.g );
+
+	return SpecularColor * AB.x + AB.y;
+}
+
+#define __USE_LIGHTMAP__ (CC_USE_LIGHTMAP && !USE_BATCHING && !CC_FORWARD_ADD)
+
+#if __USE_LIGHTMAP__
+
+
+
+
+  #include <lightingmap-fs>
+
+  #if USE_INSTANCING
+    in vec4 v_lightingMapAdds0;
+    in vec4 v_lightingMapAdds1;
+    in vec4 v_lightingMapScales0;
+    in vec4 v_lightingMapScales1;
+
+    void getLightingMapVectors (out vec4 lightingMapAdds0, out vec4 lightingMapAdds1, out vec4 lightingMapScales0, out vec4 lightingMapScales1) {
+      lightingMapAdds0 = v_lightingMapAdds0;
+      lightingMapAdds1 = v_lightingMapAdds1;
+      lightingMapScales0 = v_lightingMapScales0;
+      lightingMapScales1 = v_lightingMapScales1;
+    }
+  #endif
+
+  vec4 GetLightMapColorLQ( vec2 LightmapUV0, vec2 LightmapUV1, vec3 WorldNormal ) {
+    vec4 lightingMapAdds0 = vec4(0.);
+    vec4 lightingMapAdds1 = vec4(0.);
+    vec4 lightingMapScales0 = vec4(1.);
+    vec4 lightingMapScales1 = vec4(1.);
+
+    #if USE_INSTANCING
+      getLightingMapVectors(lightingMapAdds0, lightingMapAdds1, lightingMapScales0, lightingMapScales1);
+    #endif
+    
+    vec4 Lightmap0 = texture( cc_lightingMap, LightmapUV0 );
+    vec4 Lightmap1 = texture( cc_lightingMap, LightmapUV1 );
+      
+    // Range scale
+    vec3 LogRGB = Lightmap0.rgb * lightingMapScales0.xyz + lightingMapAdds0.xyz;	
+
+    float LogL = Luminance( LogRGB );					
+
+    // LogL -> L
+    const float LogBlackPoint = 0.00390625;	
+    float L = exp2( LogL * 16. - 8. ) - LogBlackPoint;		
+
+  // #if USE_LM_DIRECTIONALITY
+    // Alpha doesn't matter, will scaled by zero
+    vec4 SH = Lightmap1 * lightingMapScales1 + lightingMapAdds1;	
+
+    // Sample SH with normal
+    float Directionality = max( 0.0, dot( SH, vec4(WorldNormal.zyx, 1.) ) );	
+  // #else
+  // 	float Directionality = 0.6;
+  // #endif
+      
+    float Luma = L * Directionality;
+    vec3 Color = LogRGB * (Luma / LogL);				
+
+    return vec4( Color, Luma );
+  }
+
+  vec4 GetLightMapColorHQ( vec2 LightmapUV0, vec2 LightmapUV1, vec3 WorldNormal ) {
+    vec4 lightingMapAdds0 = vec4(0.);
+    vec4 lightingMapAdds1 = vec4(0.);
+    vec4 lightingMapScales0 = vec4(1.);
+    vec4 lightingMapScales1 = vec4(1.);
+
+    #if USE_INSTANCING
+      getLightingMapVectors(lightingMapAdds0, lightingMapAdds1, lightingMapScales0, lightingMapScales1);
+    #endif
+    
+    vec4 Lightmap0 = texture( cc_lightingMap, LightmapUV0 );
+    vec4 Lightmap1 = texture( cc_lightingMap, LightmapUV1 );
+      
+    half LogL = Lightmap0.w;
+
+    // Add residual
+    LogL += Lightmap1.w * (1.0 / 255.) - (0.5 / 255.);
+
+    // Range scale LogL
+    LogL = LogL * lightingMapScales0.w + lightingMapAdds0.w;
+      
+    // Range scale UVW
+    half3 UVW = Lightmap0.rgb * Lightmap0.rgb * lightingMapScales0.rgb + lightingMapAdds0.rgb;
+
+    // LogL -> L
+    const half LogBlackPoint = 0.01858136;
+    half L = exp2( LogL ) - LogBlackPoint;
+
+  // #if USE_LM_DIRECTIONALITY
+    // Range scale SH. Alpha doesn't matter, will scale with zero
+    float4 SH = Lightmap1 * lightingMapScales1 + lightingMapAdds1;
+
+    // Sample SH with normal
+    half Directionality = max( 0.0, dot( SH, float4(WorldNormal.zyx, 1) ) );
+
+  // #else
+  //   half Directionality = 0.6;
+
+  //   #if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
+  //   if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+  //   {
+  //     OutSubsurfaceLighting = L * Directionality * UVW;
+  //   }
+  //   #endif
+  // #endif
+
+    half Luma = L * Directionality;
+    half3 Color = Luma * UVW;
+
+    // float3 SkyDiffuseLighting = GetSkySHDiffuse(WorldNormal) * cc_view_SkyColor.rgb;
+    // Color += SkyDiffuseLighting;
+
+    return vec4(Color, Luminance(Color));
+  }
+
+
+
+#endif 
+
+vec4 GetLightMapColor (vec3 worldNormal) {
+    vec4 lightmapColor = vec4(0.);
+
+    #if __USE_LIGHTMAP__
+      vec2 LightmapUV0 = v_luv.xy * vec2( 1., 0.5 );
+      vec2 LightmapUV1 = LightmapUV0 + vec2( 0., 0.5 );
+        lightmapColor = GetLightMapColorLQ(LightmapUV0, LightmapUV1, worldNormal);
+
+    #endif
+
+    return lightmapColor;
+
+}
+
+float EncodeIndirectIrradiance(float IndirectIrradiance, GlobalView View)
+{
+	float L = IndirectIrradiance;
+// #if USE_PREEXPOSURE
+	L *= View.PreExposure; 
+// #endif
+	const float LogBlackPoint = 0.00390625;	
+	return log2( L + LogBlackPoint ) / 16 + 0.5;
+}
+
+float DecodeIndirectIrradiance(float IndirectIrradiance, GlobalView View)
+{
+// #if USE_PREEXPOSURE
+	const float OneOverPreExposure = 1. / View.PreExposure;
+// #else
+// 	const float OneOverPreExposure = 1.f;
+// #endif
+
+	// LogL -> L
+	float LogL = IndirectIrradiance;
+	const float LogBlackPoint = 0.00390625;	
+	return OneOverPreExposure * (exp2( LogL * 16 - 8 ) - LogBlackPoint);	
+}
+
+
+
+// #if CC_CUSTOM_IBL
+// #endif
+
+vec4 lightingBase (FPixelMaterialInputs ShadingModelContext, FMaterialPixelParameters MaterialParameters, GlobalView View, vec4 shadowPos) {
+  vec3 Color = vec3(0);
+
+  // shadow
+  float Shadow = 1.;
+
+  // light info
+  vec3 direction = normalize(-cc_mainLitDir.xyz);
+  vec3 lightColor = cc_mainLitColor.rgb * cc_mainLitColor.w;
+  // unreal trick
+  lightColor /= 3.14159265359;
+
+  // vectors
+  float NoL = max(0., dot(MaterialParameters.WorldNormal, direction));
+	// float RoL = max(0, dot(MaterialParameters.ReflectionVector, direction);
+	vec3 H = normalize(MaterialParameters.CameraVector + direction);
+	float NoH = max(0., dot(MaterialParameters.WorldNormal, H));
+
+  FDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, MaterialParameters.WorldNormal, H, NoH);
+	Color += (Shadow * NoL) * lightColor * (Lighting.Diffuse + Lighting.Specular /** MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z*/);
+
+  // lightmap
+  vec4 lightmapColor = GetLightMapColor(MaterialParameters.WorldNormal);
+  float IndirectIrradiance = lightmapColor.a * ShadingModelContext.AmbientOcclusion;
+
+  Color += lightmapColor.xyz * ShadingModelContext.DiffuseColor * View.IndirectLightingColorScale;
+  
+  // emissive
+  Color += ShadingModelContext.EmissiveColor;
+
+  // ibl
+
+    half3 SpecularIBL = GetImageBasedReflectionLighting(MaterialParameters, ShadingModelContext.Roughness, IndirectIrradiance, View);
+    Color += SpecularIBL * ShadingModelContext.SpecularColor;
+
+
+  #if CC_RECEIVE_SHADOW
+    CC_SHADOW_FACTOR_BASE(Color, NoL, shadowPos, direction, MaterialParameters.WorldNormal);
+  #endif
+
+  // final
+  return vec4(Color, ShadingModelContext.Opacity);
+}
+
+
+#if CC_FORWARD_ADD || 0
+
+#include <cc-forward-light>
+
+/** 
+ * Returns a radial attenuation factor for a point light.  
+ * WorldLightVector is the vector from the position being shaded to the light, divided by the radius of the light. 
+ */
+float RadialAttenuationMask(float3 WorldLightVector)
+{
+	float NormalizeDistanceSquared = dot(WorldLightVector, WorldLightVector);
+	return 1.0f - saturate(NormalizeDistanceSquared);
+}
+float RadialAttenuation(float3 WorldLightVector, half FalloffExponent)
+{
+	// UE3 (fast, but now we not use the default of 2 which looks quite bad):
+	return pow(RadialAttenuationMask(WorldLightVector), FalloffExponent);
+
+	// new UE4 (more physically correct but slower and has a more noticable cutoff ring in the dark):
+	// AttenFunc(x) = 1 / (x * x + 1)
+	// derived: InvAttenFunc(y) = sqrtf(1 / y - 1)
+	// FalloffExponent is ignored
+	// the following code is a normalized (scaled and biased f(0)=1 f(1)=0) and optimized
+/*
+	// light less than x % is considered 0
+	// 20% produces a bright sphere, 5 % is ok for performance, 8% looks close to the old one, smaller numbers would be more realistic but then the attenuation radius also should be increased.
+	// we can expose CutoffPercentage later, alternatively we also can compute the attenuation radius from the CutoffPercentage and the brightness
+	const float CutoffPercentage = 5.0f;  
+	    
+	float CutoffFraction = CutoffPercentage * 0.01f;  
+
+	// those could be computed on C++ side
+	float PreCompX = 1.0f - CutoffFraction;
+	float PreCompY = CutoffFraction;
+	float PreCompZ = CutoffFraction / PreCompX;
+
+	return (1 / ( NormalizeDistanceSquared * PreCompX + PreCompY) - 1) * PreCompZ;
+*/
+}
+
+/** 
+ * Calculates attenuation for a spot light.
+ * L normalize vector to light. 
+ * SpotDirection is the direction of the spot light.
+ * SpotAngles.x is CosOuterCone, SpotAngles.y is InvCosConeDifference. 
+ */
+float SpotAttenuationMask(float3 L, float3 SpotDirection, float2 SpotAngles)
+{
+	return saturate((dot(L, -SpotDirection) - SpotAngles.x) * SpotAngles.y);
+}
+float SpotAttenuation(float3 L, float3 SpotDirection, float2 SpotAngles)
+{
+	float ConeAngleFalloff = Square(SpotAttenuationMask(L, SpotDirection, SpotAngles));
+	return ConeAngleFalloff;
+}
+
+vec4 lightingAdd (FPixelMaterialInputs ShadingModelContext, FMaterialPixelParameters MaterialParameters, vec4 shadowPos) {
+  vec3 Color = vec3(0);
+
+  for (int i = 0; i < LIGHTS_PER_PASS; i++) {
+      vec3 ToLight = cc_lightPos[i].xyz - MaterialParameters.AbsoluteWorldPosition;
+      float DistanceSqr = dot(ToLight, ToLight);
+      vec3 L = ToLight * rsqrt(DistanceSqr);
+      vec3 PointH = normalize(MaterialParameters.CameraVector + L);
+
+      float PointNoL = max(0., dot(MaterialParameters.WorldNormal, L));
+      // float PointRoL = max(0., dot(MaterialParameters.ReflectionVector, L));
+      float PointNoH = max(0., dot(MaterialParameters.WorldNormal, PointH));
+
+      float Attenuation;
+      // const float FalloffExponent = 8.;
+      // if (LightColorAndFalloffExponent[i].w == 0)
+      {
+        // Sphere falloff (technically just 1/d2 but this avoids inf)
+        Attenuation = 1. / ( DistanceSqr + 0.01 );
+
+        float InvRadius = 1.0 / max(cc_lightSizeRangeAngle[i].y, 0.01);
+    
+        float LightRadiusMask = Square(saturate(1. - Square(DistanceSqr * (InvRadius * InvRadius))));
+        Attenuation *= LightRadiusMask;
+      }
+      // else
+      // {
+      //   Attenuation = RadialAttenuation(ToLight * LightPositionAndInvRadius[i].w, FalloffExponent);		
+      // }
+
+      vec3 lightColor = cc_lightColor[i].rgb;
+
+      // #if PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS
+      if (cc_lightPos[i].w > 0.0) {
+        vec3 SL = normalize(ToLight);
+        float cosInner = 1.;
+        float cosOuter = cc_lightSizeRangeAngle[i].z;
+        float litAngleScale = 1.0 / max(0.001, cosInner - cosOuter);
+        // vec2 SpotAngles = vec2(0.719339728, 3.56302667);
+        vec2 SpotAngles = vec2(cosOuter, litAngleScale);
+        Attenuation *= SpotAttenuation(L, cc_lightDir[i].xyz, SpotAngles);
+
+        // vec3 SL = normalize(ToLight);
+        // float cosInner = max(dot(-cc_lightDir[i].xyz, SL), 0.01);
+        // float cosOuter = cc_lightSizeRangeAngle[i].z;
+        // float litAngleScale = 1.0 / max(0.001, cosInner - cosOuter);
+        // float litAngleOffset = -cosOuter * litAngleScale;
+        // Attenuation *= GetAngleAtt(SL, -cc_lightDir[i].xyz, litAngleScale, litAngleOffset);
+
+        #if CC_RECEIVE_SHADOW
+          CC_DIR_SHADOW_FACTOR_BASE(lightColor, shadowPos, MaterialParameters.AbsoluteWorldPosition, cc_lightPos[i].xyz, MaterialParameters.WorldNormal);
+        #endif
+      }
+      // #endif
+
+      FDirectLighting Lighting = MobileIntegrateBxDF(ShadingModelContext, MaterialParameters.WorldNormal, PointH, PointNoH);
+			Color += min(vec3(65000.0), (Attenuation * PointNoL) * lightColor * cc_lightColor[i].w / 3.14159265359 * (Lighting.Diffuse + Lighting.Specular));
+  }
+
+  return vec4(Color, ShadingModelContext.Opacity);
+}
+
+#endif
+
+void InitShadingModelContext( inout FPixelMaterialInputs ShadingModelContext, FMaterialPixelParameters MaterialParameters) {
+  // The smallest normalized value that can be represented in IEEE 754 (FP16) is 2^-14 = 6.1e-5.
+	// The code will make the following computation involving roughness: 1.0 / Roughness^4.
+	// Therefore to prevent division by zero on devices that do not support denormals, Roughness^4
+	// must be >= 6.1e-5. We will clamp to 0.09 because 0.09^4 = 6.5e-5.
+	// Increase value from 0.09 to 0.12 to fix missing specular lobe problem on device
+	//
+	// Note that we also clamp to 1.0 to match the deferred renderer on PC where the roughness is 
+	// stored in an 8-bit value and thus automatically clamped at 1.0.
+	// To help with IBL cube sample, we postpone the clamp only when calculate GGX_Mobile.
+	ShadingModelContext.RoughnessWithClamp = max(0.12, ShadingModelContext.Roughness);
+
+	float NoV = max(dot(MaterialParameters.WorldNormal, MaterialParameters.CameraVector), 0.);
+
+  half DielectricSpecular = 0.08 * ShadingModelContext.Specular;
+  ShadingModelContext.DiffuseColor = ShadingModelContext.BaseColor - ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	
+  ShadingModelContext.SpecularColor = (DielectricSpecular - DielectricSpecular * ShadingModelContext.Metallic) + ShadingModelContext.BaseColor * ShadingModelContext.Metallic;	
+
+	// ShadingModelContext.SpecularColor = EnvBRDF(ShadingModelContext.SpecularColor, ShadingModelContext.Roughness, NoV);
+	ShadingModelContext.SpecularColor = EnvBRDFApprox(ShadingModelContext.SpecularColor, ShadingModelContext.Roughness, NoV);
+}
+
+vec4 lighting (FPixelMaterialInputs ShadingModelContext, FMaterialPixelParameters MaterialParameters, GlobalView View, vec4 shadowPos) {
+  vec4 color = vec4(0.);
+  #if CC_PIPELINE_TYPE == CC_PIPELINE_TYPE_DEFERRED
+    color = lightingBase(ShadingModelContext, MaterialParameters, View, shadowPos);
+  #elif CC_PIPELINE_TYPE == CC_PIPELINE_TYPE_FORWARD
+    #if CC_FORWARD_ADD
+      color = lightingAdd(ShadingModelContext, MaterialParameters, shadowPos);
+    #else
+      color = lightingBase(ShadingModelContext, MaterialParameters, View, shadowPos);
+    #endif
+  #endif
+
+  return color;
+}
+
+
+void getPixelParameters (out FMaterialPixelParameters Parameters) {
+  Parameters.TexCoords_0 = v_uv;
+
+  #if CC_USE_ATTR_COLOR
+    Parameters.VertexColor = v_color;
+  #else
+    Parameters.VertexColor = vec4(1.);
+  #endif
+
+  Parameters.WorldNormal = v_normal;
+
+  Parameters.AbsoluteWorldPosition = v_position;
+  Parameters.CameraVector = normalize(cc_cameraPos.xyz - v_position);
+
+  Parameters.SvPosition = gl_FragCoord;
+  Parameters.ScreenPosition = SvPositionToResolvedScreenPosition(gl_FragCoord);
+
+  Parameters.TangentToWorld = mat3(
+    v_tangent,
+    v_bitangent,
+    v_normal
+  );
+
+  Parameters.LightmapUVs = v_uv1;
+}
+
+void surf (out FPixelMaterialInputs PixelMaterialInputs, out FMaterialPixelParameters Parameters, out GlobalView View) {
+  getPixelParameters(Parameters);
+  getGlobalView(View);
+  CalcPixelMaterialInputs(Parameters, PixelMaterialInputs);
+
+  PixelMaterialInputs.Normal.y *= -1.;
+  Parameters.WorldNormal = TransformTangentNormalToWorld(Parameters.TangentToWorld, PixelMaterialInputs.Normal);
+  PixelMaterialInputs.Normal = Parameters.WorldNormal;
+
+  InitShadingModelContext(PixelMaterialInputs, Parameters);
+}
+
+#if CC_PIPELINE_TYPE == CC_PIPELINE_TYPE_FORWARD
+  #include <cc-shadow-map-fs>
+
+//
+// Generic log lin transforms
+//
+float3 LogToLin( float3 LogColor )
+{
+	const float LinearRange = 14.;
+	const float LinearGrey = 0.18;
+	const float ExposureGrey = 444.;
+
+	// Using stripped down, 'pure log', formula. Parameterized by grey points and dynamic range covered.
+	float3 LinearColor = exp2( ( LogColor - ExposureGrey / 1023.0 ) * LinearRange ) * LinearGrey;
+	//float3 LinearColor = 2 * ( pow(10.0, ((LogColor - 0.616596 - 0.03) / 0.432699)) - 0.037584 );	// SLog
+	//float3 LinearColor = ( pow( 10, ( 1023 * LogColor - 685 ) / 300) - .0108 ) / (1 - .0108);	// Cineon
+	//LinearColor = max( 0, LinearColor );
+
+	return LinearColor;
+}
+
+float3 LinToLog( float3 LinearColor )
+{
+	const float LinearRange = 14.;
+	const float LinearGrey = 0.18;
+	const float ExposureGrey = 444.;
+
+	// Using stripped down, 'pure log', formula. Parameterized by grey points and dynamic range covered.
+	float3 LogColor = log2(LinearColor) / LinearRange - log2(LinearGrey) / LinearRange + ExposureGrey / 1023.0;	
+	//float3 LogColor = (log2(LinearColor) - log2(LinearGrey)) / LinearRange + ExposureGrey / 1023.0;
+	//float3 LogColor = log2( LinearColor / LinearGrey ) / LinearRange + ExposureGrey / 1023.0;
+	//float3 LogColor = (0.432699 * log10(0.5 * LinearColor + 0.037584) + 0.616596) + 0.03;	// SLog
+	//float3 LogColor = ( 300 * log10( LinearColor * (1 - .0108) + .0108 ) + 685 ) / 1023;	// Cineon
+	LogColor = saturate( LogColor );
+
+	return LogColor;
+}
+
+half LinearToSrgbBranchingChannel(half lin) 
+{
+	if(lin < 0.00313067) return lin * 12.92;
+	return pow(lin, (1.0/2.4)) * 1.055 - 0.055;
+}
+
+half3 LinearToSrgbBranching(half3 lin) 
+{
+	return half3(
+		LinearToSrgbBranchingChannel(lin.r),
+		LinearToSrgbBranchingChannel(lin.g),
+		LinearToSrgbBranchingChannel(lin.b));
+}
+
+half3 LinearToSrgb(half3 lin) 
+{
+// #if FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
+	// Branching is faster than branchless on AMD on PC.
+	return LinearToSrgbBranching(lin);
+// #else
+// 	// Adreno devices(Nexus5) with Android 4.4.2 do not handle branching version well, so always use branchless on Mobile
+// 	return LinearToSrgbBranchless(lin);
+// #endif
+}
+
+
+#pragma builtin(global)
+layout(set = 0, binding = 13) uniform sampler2D cc_color_gradingLUT;
+
+const float LUTSize = 32.;
+
+half4 UnwrappedTexture3DSample( sampler2D Texture, float3 UVW, float Size ) {
+	// a volume texture 16x16x16 would be unwrapped to a 2d texture 256x16
+
+	float IntW = floor( UVW.z * Size - 0.5 );
+	half FracW = UVW.z * Size - 0.5 - IntW;
+
+	float U = ( UVW.x + IntW ) / Size;
+	float V = UVW.y;
+
+	half4 RG0 = texture( Texture, float2(U, V) );
+    // RG0.rgb *= RG0.rgb; //  to linear
+
+	half4 RG1 = texture( Texture, float2(U + 1.0 / Size, V) );
+    // RG1.rgb *= RG1.rgb; //  to linear
+
+	return lerp(RG0, RG1, FracW);
+}
+
+half3 ColorLookupTable( half3 LinearColor )
+{
+	float3 LUTEncodedColor;
+	// // Encode as ST-2084 (Dolby PQ) values
+	// #if (DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitST2084 || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES1000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_ACES2000nitScRGB || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_LinearEXR || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_NoToneCurve || DIM_OUTPUT_DEVICE == TONEMAPPER_OUTPUT_WithToneCurve)
+	// 	// ST2084 expects to receive linear values 0-10000 in nits.
+	// 	// So the linear value must be multiplied by a scale factor to convert to nits.
+	// 	LUTEncodedColor = LinearToST2084(LinearColor * LinearToNitsScale);
+	// #else
+		LUTEncodedColor = LinToLog( LinearColor + LogToLin( vec3(0.) ) );
+
+	// #endif
+
+	float3 UVW = LUTEncodedColor * ((LUTSize - 1.) / LUTSize) + (0.5 / LUTSize);
+
+// #if USE_VOLUME_LUT == 1
+// 	half3 OutDeviceColor = Texture3DSample( cc_color_gradingLUT, cc_color_gradingLUTSampler, UVW ).rgb;
+// #else
+	half3 OutDeviceColor = UnwrappedTexture3DSample( cc_color_gradingLUT, UVW, LUTSize ).rgb;
+// #endif
+	
+	return OutDeviceColor * 1.05;
+}
+
+
+  layout(location = 0) out vec4 fragColorX;
+
+  void main () {
+    FMaterialPixelParameters Parameters;
+    FPixelMaterialInputs PixelMaterialInputs;
+    GlobalView View;
+    
+    surf(PixelMaterialInputs, Parameters, View);
+
+    vec4 color = lighting(PixelMaterialInputs, Parameters, View, CC_SHADOW_POSITION);
+
+    color.rgb *= View.PreExposure;
+
+    color.rgb = ColorLookupTable(color.xyz);
+
+    fragColorX = color;
+  }                                        
+                                                                  
+#elif CC_PIPELINE_TYPE == CC_PIPELINE_TYPE_DEFERRED
+
+  layout(location = 0) out vec4 fragColor0;
+  layout(location = 1) out vec4 fragColor1;
+  layout(location = 2) out vec4 fragColor2;
+  layout(location = 3) out vec4 fragColor3;
+
+  void main () {
+    FMaterialPixelParameters Parameters;
+    FPixelMaterialInputs PixelMaterialInputs;
+    GlobalView View;
+
+    surf(PixelMaterialInputs, Parameters, View);
+
+    fragColor0 = vec4(PixelMaterialInputs.BaseColor, PixelMaterialInputs.Opacity);
+    fragColor1 = vec4(Parameters.AbsoluteWorldPosition, PixelMaterialInputs.Roughness);
+    fragColor2 = vec4(Parameters.WorldNormal, PixelMaterialInputs.Metallic);
+
+    // color
+    vec3 color = vec3(0.);
+    
+    // light map
+    vec4 lightmapColor = GetLightMapColor(Parameters.WorldNormal);
+
+    color += lightmapColor.xyz * PixelMaterialInputs.DiffuseColor * View.IndirectLightingColorScale;
+
+    // emissive
+    color += PixelMaterialInputs.EmissiveColor;
+
+    // indirect irradiance
+    float IndirectIrradiance = lightmapColor.a;
+    IndirectIrradiance *= PixelMaterialInputs.AmbientOcclusion;
+
+    // float IndirectIrradiance = EncodeIndirectIrradiance(lightmapColor.a * PixelMaterialInputs.AmbientOcclusion);
+
+    fragColor3 = vec4(color, IndirectIrradiance);
+  }
+
+#endif
+
+
+        }%
+        
+
+
+        CCProgram shadow-caster-vs %{
+            
+  precision highp float;
+  #include <input-standard>
+  #include <cc-local-batch>
+  #include <cc-shadow>
+
+  out float v_clip_depth;
+
+  vec4 vert () {
+    StandardVertInput In;
+    CCVertInput(In);
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+    vec4 worldPos = matWorld * In.position;
+    vec4 clipPos = cc_matLightViewProj * worldPos;
+
+    v_clip_depth = clipPos.z / clipPos.w * 0.5 + 0.5;
+
+    return clipPos;
+  }
+
+        }%
+        
+
+
+        CCProgram shadow-caster-fs %{
+            
+  precision highp float;
+  #include <packing>
+
+  in float v_clip_depth;
+
+  vec4 frag () {
+    return packDepthToRGBA(v_clip_depth);
+  }
+
+        }%
+        

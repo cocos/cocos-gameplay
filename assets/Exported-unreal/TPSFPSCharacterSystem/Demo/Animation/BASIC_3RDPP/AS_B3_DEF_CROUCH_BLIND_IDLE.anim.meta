@@ -1,0 +1,13 @@
+{
+  "ver": "1.0.11",
+  "importer": "animation-clip",
+  "imported": true,
+  "uuid": "cbd6101b-5fa6-418d-859c-0f7af321ad0b",
+  "files": [
+    ".json"
+  ],
+  "subMetas": {},
+  "userData": {
+    "name": "AS_B3_DEF_CROUCH_BLIND_IDLE"
+  }
+}

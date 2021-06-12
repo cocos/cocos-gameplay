@@ -1,0 +1,13 @@
+{
+  "ver": "1.0.11",
+  "importer": "animation-clip",
+  "imported": true,
+  "uuid": "6a9cf834-81f4-4da1-8421-7aa7a1ffc0aa",
+  "files": [
+    ".json"
+  ],
+  "subMetas": {},
+  "userData": {
+    "name": "AS_B3_DEF_CROUCH_AIM_MOVERIGHT"
+  }
+}

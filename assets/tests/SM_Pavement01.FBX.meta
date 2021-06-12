@@ -1,0 +1,293 @@
+{
+  "ver": "2.0.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547",
+  "files": [],
+  "subMetas": {
+    "58365": {
+      "importer": "gltf-scene",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@58365",
+      "displayName": "",
+      "id": "58365",
+      "name": "SM_Pavement01.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "70afb": {
+      "importer": "gltf-mesh",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@70afb",
+      "displayName": "",
+      "id": "70afb",
+      "name": "SM_Pavement01_Material0.mesh",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "ffea8": {
+      "importer": "gltf-mesh",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@ffea8",
+      "displayName": "",
+      "id": "ffea8",
+      "name": "UCX_SM_Pavement01.mesh",
+      "userData": {
+        "gltfIndex": 1
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "b1db1": {
+      "importer": "gltf-embeded-image",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@b1db1",
+      "displayName": "",
+      "id": "b1db1",
+      "name": "T_PavementDetails01_BC.image",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".png",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "d22cc": {
+      "importer": "gltf-embeded-image",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d22cc",
+      "displayName": "",
+      "id": "d22cc",
+      "name": "T_PavementDetails01_N.image",
+      "userData": {
+        "gltfIndex": 1
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".png",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "d1b51": {
+      "importer": "gltf-embeded-image",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d1b51",
+      "displayName": "",
+      "id": "d1b51",
+      "name": "T_Pavement01_BC.image",
+      "userData": {
+        "gltfIndex": 2
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".png",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "69f8c": {
+      "importer": "gltf-embeded-image",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@69f8c",
+      "displayName": "",
+      "id": "69f8c",
+      "name": "T_Pavement01_N.image",
+      "userData": {
+        "gltfIndex": 3
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".png",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "8fa2b": {
+      "importer": "texture",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@8fa2b",
+      "displayName": "",
+      "id": "8fa2b",
+      "name": "T_PavementDetails01_BC.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@b1db1"
+      },
+      "ver": "1.0.21",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "c038e": {
+      "importer": "texture",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@c038e",
+      "displayName": "",
+      "id": "c038e",
+      "name": "T_PavementDetails01_N.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d22cc"
+      },
+      "ver": "1.0.21",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "6dbfa": {
+      "importer": "texture",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@6dbfa",
+      "displayName": "",
+      "id": "6dbfa",
+      "name": "T_Pavement01_BC.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d1b51"
+      },
+      "ver": "1.0.21",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "9e21e": {
+      "importer": "texture",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@9e21e",
+      "displayName": "",
+      "id": "9e21e",
+      "name": "T_Pavement01_N.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@69f8c"
+      },
+      "ver": "1.0.21",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "ba8e5": {
+      "importer": "gltf-material",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@ba8e5",
+      "displayName": "",
+      "id": "ba8e5",
+      "name": "MI_GroundDetails.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "d2488": {
+      "importer": "gltf-material",
+      "uuid": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d2488",
+      "displayName": "",
+      "id": "d2488",
+      "name": "MI_PavementTile01.material",
+      "userData": {
+        "gltfIndex": 1
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "T_PavementDetails01_BC",
+        "uri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@b1db1"
+      },
+      {
+        "name": "T_PavementDetails01_N",
+        "uri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d22cc"
+      },
+      {
+        "name": "T_Pavement01_BC",
+        "uri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@d1b51"
+      },
+      {
+        "name": "T_Pavement01_N",
+        "uri": "0a1a9767-1346-467c-a074-c4b2fbc6d547@69f8c"
+      }
+    ],
+    "legacyFbxImporter": false,
+    "redirect": "0a1a9767-1346-467c-a074-c4b2fbc6d547@58365",
+    "assetFinder": {
+      "meshes": [
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@70afb",
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@ffea8"
+      ],
+      "skeletons": [],
+      "textures": [
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@8fa2b",
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@c038e",
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@6dbfa",
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@9e21e"
+      ],
+      "materials": [
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@ba8e5",
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@d2488"
+      ],
+      "scenes": [
+        "0a1a9767-1346-467c-a074-c4b2fbc6d547@58365"
+      ]
+    }
+  }
+}

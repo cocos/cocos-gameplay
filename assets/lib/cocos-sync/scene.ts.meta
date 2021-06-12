@@ -1,0 +1,14 @@
+{
+  "ver": "4.0.22",
+  "importer": "typescript",
+  "imported": true,
+  "uuid": "98bd3beb-7e5b-4431-8b41-3b50e4f30c3f",
+  "files": [],
+  "subMetas": {},
+  "userData": {
+    "importAsPlugin": false,
+    "moduleId": "project:///assets/lib/cocos-sync/scene.js",
+    "importerSettings": 7,
+    "simulateGlobals": []
+  }
+}

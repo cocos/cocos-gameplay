@@ -1,0 +1,31 @@
+{
+  "creator": {
+    "version": "3.1.1"
+  },
+  "dependencies": {
+    "repo-helper": "git+https://github.com/2youyou2/repo-helper.git#0.0.2"
+  },
+  "name": "scifi",
+  "repos": {
+    "assets/lib/cocos-sync": {
+      "branch": "v3.1",
+      "private": true,
+      "url": "git@github.com:cocos-creator/cocos-sync.git"
+    },
+    "assets/lib/cocos-utils": {
+      "branch": "v3.1",
+      "url": "git@github.com:2youyou2/cocos-utils.git"
+    },
+    "assets/lib/extend-components": {
+      "branch": "v3.1",
+      "url": "git@github.com:cocos-creator/cocos-sync-extend-components.git"
+    }
+  },
+  "scripts": {
+    "postinstall": "repo-helper",
+    "update": "repo-helper"
+  },
+  "type": "3d",
+  "uuid": "d46ac08a-3520-4b81-badc-a25693caeb8f",
+  "version": "3.1.1"
+}

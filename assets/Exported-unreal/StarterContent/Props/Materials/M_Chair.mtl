@@ -1,0 +1,78 @@
+{
+  "__type__": "cc.Material",
+  "_name": "",
+  "_objFlags": 0,
+  "_native": "",
+  "_effectAsset": {
+    "__uuid__": "ca195d3e-831a-4e65-8655-820a57b84e88",
+    "__expectedType__": "cc.EffectAsset"
+  },
+  "_techIdx": 0,
+  "_defines": [
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    },
+    {
+      "USE_ALBEDO_MAP": false,
+      "USE_METAL_SMOOTH_MAP": false,
+      "USE_NORMAL_MAP": false,
+      "USE_OCCLUSION_MAP": false,
+      "USE_EMISSIVE_MAP": false,
+      "USE_LIGHTMAP": false,
+      "HAS_SECOND_UV": false,
+      "USE_INSTANCING": true,
+      "USE_ALPHA_TEST": false
+    }
+  ],
+  "_states": [
+    {},
+    {},
+    {},
+    {}
+  ],
+  "_props": [
+    {
+      "Material_Texture2D_0": {
+        "__uuid__": "dd1f10fd-c0be-4dc2-8b5e-203cc136b57a@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      },
+      "Material_Texture2D_1": {
+        "__uuid__": "a4b10407-fe8a-4948-80fe-2d069d89c661@6c48a",
+        "__expectedType__": "cc.Texture2D"
+      }
+    },
+    {},
+    {},
+    {}
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "__version__": "1.0.1",
+  "physics": {
+    "collisionGroups": [
+      {
+        "index": 1,
+        "name": "player-bullet"
+      },
+      {
+        "index": 2,
+        "name": "ai"
+      },
+      {
+        "index": 3,
+        "name": "ground"
+      },
+      {
+        "index": 4,
+        "name": "wall"
+      },
+      {
+        "index": 5,
+        "name": "player"
+      },
+      {
+        "index": 6,
+        "name": "aim-plane-topdown"
+      },
+      {
+        "index": 7,
+        "name": "path-point"
+      },
+      {
+        "index": 8,
+        "name": "Corner"
+      },
+      {
+        "index": 9,
+        "name": "npc"
+      },
+      {
+        "index": 10,
+        "name": "enemy-bullet"
+      },
+      {
+        "index": 11,
+        "name": "bevel"
+      }
+    ],
+    "collisionMatrix": {
+      "0": 1,
+      "1": 20,
+      "2": 54,
+      "3": 0,
+      "4": 1062,
+      "5": 1076,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 48,
+      "11": 0
+    }
+  },
+  "general": {
+    "renderPipeline": "fd8ec536-a354-4a17-9c74-4f3883c378c8"
+  }
+}

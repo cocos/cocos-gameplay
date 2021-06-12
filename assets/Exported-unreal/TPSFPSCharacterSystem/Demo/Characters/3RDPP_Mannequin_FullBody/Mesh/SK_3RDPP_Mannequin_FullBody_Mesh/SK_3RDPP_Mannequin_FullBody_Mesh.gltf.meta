@@ -1,0 +1,58 @@
+{
+  "ver": "2.0.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742",
+  "files": [],
+  "subMetas": {
+    "0603f": {
+      "importer": "gltf-mesh",
+      "uuid": "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742@0603f",
+      "displayName": "",
+      "id": "0603f",
+      "name": "SK_3RDPP_Mannequin_FullBody_Mesh.mesh",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "9283e": {
+      "importer": "gltf-scene",
+      "uuid": "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742@9283e",
+      "displayName": "",
+      "id": "9283e",
+      "name": "SK_3RDPP_Mannequin_FullBody_Mesh.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "legacyFbxImporter": false,
+    "redirect": "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742@9283e",
+    "assetFinder": {
+      "meshes": [
+        "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742@0603f"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "adb0749b-a57a-4a2b-8a2d-3aee2a6fb742@9283e"
+      ]
+    }
+  }
+}

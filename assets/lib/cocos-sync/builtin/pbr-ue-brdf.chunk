@@ -1,0 +1,100 @@
+#include <pbr-lighting>
+
+
+// GGX / Trowbridge-Reitz
+// [Walter et al. 2007, "Microfacet models for refraction through rough surfaces"]
+float D_GGX( float a2, float NoH )
+{
+  float d = ( NoH * a2 - NoH ) * NoH + 1.;	// 2 mad
+  return a2 / ( PI*d*d );					// 4 mul, 1 rcp
+}
+// Appoximation of joint Smith term for GGX
+// [Heitz 2014, "Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs"]
+float Vis_SmithJointApprox( float a2, float NoV, float NoL )
+{
+  float a = sqrt(a2);
+  float Vis_SmithV = NoL * ( NoV * ( 1. - a ) + a );
+  float Vis_SmithL = NoV * ( NoL * ( 1. - a ) + a );
+  return 0.5 / ( Vis_SmithV + Vis_SmithL );
+}
+// [Schlick 1994, "An Inexpensive BRDF Model for Physically-Based Rendering"]
+vec3 F_Schlick( vec3 SpecularColor, float VoH )
+{
+  float Fc = pow( 1. - VoH, 5. );					// 1 sub, 3 mul
+  //return Fc + (1 - Fc) * SpecularColor;		// 1 add, 3 mad
+  
+  // Anything less than 2% is physically impossible and is instead considered to be shadowing
+  return saturate( 50.0 * SpecularColor.g ) * Fc + (1. - Fc) * SpecularColor;
+  
+}
+
+vec3 SpecularGGX(vec3 SpecularColor, float Roughness, float NoH, float VoH, float NoV, float NoL) {
+  float a2 = pow( Roughness, 4. );
+  // float Energy = ( a2, VoH, AreaLight );
+  
+  // Generalized microfacet specular
+  float D = D_GGX( a2, NoH );// * Energy;
+  float Vis = Vis_SmithJointApprox( a2, NoV, NoL );
+  vec3 F = F_Schlick( SpecularColor, VoH );
+
+  return (D * Vis) * F;
+}
+
+vec3 BRDFMobile (StandardSurface s, vec3 diffuse, vec3 N, vec3 L, vec3 H, vec3 V, float NV, float NH, float NL) {
+  vec3 lightColor = SRGBToLinear(cc_mainLitColor.rgb);
+
+  vec3 specularColor = mix(vec3(0.04), s.albedo.rgb, s.metallic);
+  specularColor = BRDFApprox(specularColor, s.roughness, NV);
+
+  vec3 finalColor = NL * lightColor * cc_mainLitColor.w / PI;
+  #if USE_LIGHTMAP && !USE_BATCHING && !CC_FORWARD_ADD
+    finalColor += s.lightmap.rgb;
+  #endif
+
+  vec3 diffuseContrib = diffuse;
+  // Cook-Torrance Microfacet Specular BRDF
+  vec3 specularContrib = specularColor * CalcSpecular(s.roughness, NH, H, N);
+
+  finalColor *= diffuseContrib + specularContrib;
+  return finalColor;
+}
+
+vec3 BRDF (StandardSurface s, GI gi) {
+  GIInput giInput = gi.giInput;
+  Light light = gi.light;
+  IndirectLight indirect = gi.indirect;
+
+  float NH = max(dot(giInput.normal, giInput.halfDir), 0.0);
+  float VH = max(dot(giInput.view, giInput.halfDir), 0.0);
+  float NV = max(abs(dot(giInput.normal, giInput.view)), 0.001);
+  float NL = max(dot(giInput.normal, light.direction), 0.001);
+
+  float perceptualRoughness = s.roughness;
+  
+  vec3 diffColor = giInput.diffuseColor;
+  vec3 specColor = giInput.specColor;
+
+  float a2 = pow( perceptualRoughness, 4. );
+
+  // Diffuse term
+  vec3 diffuseTerm = diffColor / PI;
+
+  // Specular term
+  float D = D_GGX( a2, NH );// * Energy;
+  float Vis = Vis_SmithJointApprox( a2, NV, NL );
+  vec3 F = F_Schlick( giInput.specColor, VH );
+  
+  vec3 specularTerm = (D * Vis) * F;
+
+  // float surfaceReduction = 1.0 / (perceptualRoughness*perceptualRoughness + 1.0);           // fade \in [0.5;1]
+  float surfaceReduction = 0.;//pow((1. - perceptualRoughness), 20.);
+
+  // final
+  vec3 color = diffColor * (indirect.diffuse + diffuseTerm * light.color)
+    + specularTerm * light.color
+    + surfaceReduction * indirect.specular;
+
+  // vec3 color = (diffuseTerm  + specularTerm) * light.color;
+
+  return color;
+}

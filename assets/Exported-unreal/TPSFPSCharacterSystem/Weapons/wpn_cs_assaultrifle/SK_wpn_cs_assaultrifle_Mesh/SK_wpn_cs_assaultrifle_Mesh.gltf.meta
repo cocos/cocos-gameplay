@@ -1,0 +1,58 @@
+{
+  "ver": "2.0.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "12589ab1-1ec2-4409-8a89-16745850b47b",
+  "files": [],
+  "subMetas": {
+    "9870a": {
+      "importer": "gltf-mesh",
+      "uuid": "12589ab1-1ec2-4409-8a89-16745850b47b@9870a",
+      "displayName": "",
+      "id": "9870a",
+      "name": "SK_wpn_cs_assaultrifle_Mesh.mesh",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "d5765": {
+      "importer": "gltf-scene",
+      "uuid": "12589ab1-1ec2-4409-8a89-16745850b47b@d5765",
+      "displayName": "",
+      "id": "d5765",
+      "name": "SK_wpn_cs_assaultrifle_Mesh.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "legacyFbxImporter": false,
+    "redirect": "12589ab1-1ec2-4409-8a89-16745850b47b@d5765",
+    "assetFinder": {
+      "meshes": [
+        "12589ab1-1ec2-4409-8a89-16745850b47b@9870a"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "12589ab1-1ec2-4409-8a89-16745850b47b@d5765"
+      ]
+    }
+  }
+}

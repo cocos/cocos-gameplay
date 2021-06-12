@@ -1,0 +1,113 @@
+
+struct Light {
+  vec3 color;
+  vec3 direction;
+};
+
+struct IndirectLight {
+  vec3 diffuse;
+  vec3 specular;
+};
+
+struct GIInput {
+  vec3 diffuseColor;
+  vec3 specColor;
+  float oneMinusReflectivity;
+
+  vec3 view;
+  vec3 normal;
+  vec3 halfDir;
+};
+
+struct GI {
+  GIInput giInput;
+  Light light;
+  IndirectLight indirect;
+};
+
+// #if USE_IBL
+  #include <texture-lod>
+
+  #define IBL_RGBA 1
+  #define IBL_RGBE 2
+  #pragma define USE_IBL range([0, 2])
+
+  uniform samplerCube envMap;
+// #endif
+
+Light mainLight () {
+  Light mainLight;
+  mainLight.color = cc_mainLitColor.rgb * cc_mainLitColor.w;
+  mainLight.direction = normalize(-cc_mainLitDir.xyz);
+  return mainLight;
+}
+
+IndirectLight indirectLight (in StandardSurface s, in GIInput giInput) {
+  IndirectLight indirect;
+
+  #if USE_LIGHTMAP && !USE_BATCHING && !CC_FORWARD_ADD
+    indirect.diffuse = s.lightmap.rgb;
+  #else
+    indirect.diffuse = vec3(0.);
+  #endif
+
+  #if USE_IBL && !CC_FORWARD_ADD
+    float perceptualRoughness = s.roughness;
+    perceptualRoughness = perceptualRoughness*(1.7 - 0.7*perceptualRoughness);
+    float mip = perceptualRoughness * 6.;
+
+    vec3 R = normalize(reflect(-giInput.view, giInput.normal));
+    vec4 envColor = fragTextureLod(envMap, R, mip);
+    #if USE_IBL == IBL_RGBE
+      vec3 env = RGBE2Linear(envColor);
+    #else
+      vec3 env = SRGBToLinear(envColor.rgb);
+    #endif
+    
+    indirect.specular = env;
+  #else
+    indirect.specular = vec3(0.);
+  #endif
+
+  return indirect;
+}
+
+#define oneMinusDielectricSpec 0.96
+
+void preMultiplyAlpha (inout StandardSurface s, inout vec3 diffuseColor, float oneMinusReflectivity)
+{
+    // NOTE: shader relies on pre-multiply alpha-blend (_SrcBlend = One, _DstBlend = OneMinusSrcAlpha)
+
+    // Transparency 'removes' from Diffuse component
+    diffuseColor *= s.albedo.a;
+    // Reflectivity 'removes' from the rest of components, including Transparency
+    // outAlpha = 1-(1-alpha)*(1-reflectivity) = 1-(oneMinusReflectivity - alpha*oneMinusReflectivity) =
+    //          = 1-oneMinusReflectivity + alpha*oneMinusReflectivity
+    s.albedo.a = 1. - oneMinusReflectivity + s.albedo.a * oneMinusReflectivity;
+}
+
+GIInput giInput (inout StandardSurface s, Light light) {
+  GIInput giInput;
+
+  float oneMinusReflectivity = oneMinusDielectricSpec - s.metallic * oneMinusDielectricSpec;
+
+  giInput.oneMinusReflectivity = oneMinusReflectivity;
+  giInput.diffuseColor = s.albedo.rgb * oneMinusReflectivity;
+  giInput.specColor = mix(vec3(0.04), s.albedo.rgb, s.metallic);
+
+  giInput.normal = normalize(s.normal);
+  giInput.view = normalize(cc_cameraPos.xyz - s.position);
+  giInput.halfDir = normalize(light.direction + giInput.view);
+
+  preMultiplyAlpha(s, giInput.diffuseColor, oneMinusReflectivity);
+
+  return giInput;
+}
+
+GI fragGI (inout StandardSurface s) {
+  GI gi;
+  gi.light = mainLight();
+  gi.giInput = giInput(s, gi.light);
+  gi.indirect = indirectLight(s, gi.giInput);
+  return gi;
+}

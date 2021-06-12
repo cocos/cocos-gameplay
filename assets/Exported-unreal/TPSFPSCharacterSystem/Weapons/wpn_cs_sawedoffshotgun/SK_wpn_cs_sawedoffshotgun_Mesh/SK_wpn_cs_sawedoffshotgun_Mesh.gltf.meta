@@ -1,0 +1,58 @@
+{
+  "ver": "2.0.14",
+  "importer": "gltf",
+  "imported": true,
+  "uuid": "9f977ff5-f418-45bb-913a-5d111707a279",
+  "files": [],
+  "subMetas": {
+    "06eaf": {
+      "importer": "gltf-mesh",
+      "uuid": "9f977ff5-f418-45bb-913a-5d111707a279@06eaf",
+      "displayName": "",
+      "id": "06eaf",
+      "name": "SK_wpn_cs_sawedoffshotgun_Mesh.mesh",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "2141d": {
+      "importer": "gltf-scene",
+      "uuid": "9f977ff5-f418-45bb-913a-5d111707a279@2141d",
+      "displayName": "",
+      "id": "2141d",
+      "name": "SK_wpn_cs_sawedoffshotgun_Mesh.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "legacyFbxImporter": false,
+    "redirect": "9f977ff5-f418-45bb-913a-5d111707a279@2141d",
+    "assetFinder": {
+      "meshes": [
+        "9f977ff5-f418-45bb-913a-5d111707a279@06eaf"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "9f977ff5-f418-45bb-913a-5d111707a279@2141d"
+      ]
+    }
+  }
+}
